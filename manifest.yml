@@ -38,9 +38,7 @@ applications:
 
       # ── SAP Alert Notification Service ──────────────────────────────────────
       # Bind the alert-notification service instance in `services:` below (recommended).
-      # ANS_SERVICE_NAME is only needed if multiple ANS instances are bound.
       ENABLE_ANS: "false"
-      # ANS_SERVICE_NAME: "ai-core-monitor-ans"
 
       # ── Explicit credentials (alternative to CF service binding) ────────────
       # Use when UAS/ANS are provisioned in a different subaccount, or for local dev.
@@ -58,4 +56,4 @@ applications:
     services:
       - uas-reporting        # Usage Data Management service instance
       - ai-core-monitor-xsuaa  # XSUAA – required for JWT validation on BTP
-      - ai-core-monitor-ans  # Alert Notification Service instance (optional)
+      # - ai-core-monitor-ans  # Alert Notification Service instance (uncomment if using ANS)

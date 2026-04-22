@@ -217,15 +217,10 @@ env:
   ANS_URL: "https://clm-sl-ans-live-ans-service-api.cfapps.<region>.hana.ondemand.com"
   ANS_CLIENT_ID: "sb-..."
   ANS_TOKEN_URL: "https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token"
+  # ANS_CLIENT_SECRET is a secret – set it via cf set-env after cf push (see Step 5)
 ```
 
-Set the secret via `cf set-env`:
-```bash
-cf set-env ai-core-monitor ANS_CLIENT_SECRET 'your-ans-client-secret'
-cf restage ai-core-monitor
-```
-
-**3.3 — Create a condition and subscription (both options)**
+**Create a condition and subscription**
 
 In the ANS dashboard (BTP cockpit → your ANS service instance → **Manage**):
 
@@ -342,11 +337,14 @@ cf push
 `cf set-env` requires the app to exist, so run these after the first `cf push`:
 
 ```bash
-# Only required if using Option B (explicit UAS credentials, not CF service binding):
+# Only required if using UAS Option B (explicit credentials, not CF service binding):
 cf set-env ai-core-monitor UAS_CLIENT_SECRET 'your-uas-client-secret'
 
 # Only required if ENABLE_SMTP=true:
 cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
+
+# Only required if using ANS Option B (explicit credentials, not CF service binding):
+cf set-env ai-core-monitor ANS_CLIENT_SECRET 'your-ans-client-secret'
 
 cf restage ai-core-monitor
 ```

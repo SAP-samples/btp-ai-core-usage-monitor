@@ -334,8 +334,6 @@ cf push
 
 ### 5. Set secrets
 
-`cf set-env` requires the app to exist, so run these after the first `cf push`:
-
 ```bash
 # Only required if using UAS Option B (explicit credentials, not CF service binding):
 cf set-env ai-core-monitor UAS_CLIENT_SECRET 'your-uas-client-secret'
@@ -440,13 +438,18 @@ The HTML email includes:
 
 ## Local Development
 
+> ⚠️ CF service bindings (`VCAP_SERVICES`) are not available locally. Use **Option B** (explicit credentials) for both UAS and ANS when running locally — set all required values in `.env`.
+
 ```bash
 # Install dependencies
 pip install -r requirements.txt
 
 # Copy and fill in environment variables
 cp .env.example .env
-# Edit .env with your actual values
+# Edit .env with your actual values:
+#   UAS_CLIENT_ID, UAS_CLIENT_SECRET, UAS_TOKEN_URL  (always required locally)
+#   ANS_URL, ANS_CLIENT_ID, ANS_CLIENT_SECRET, ANS_TOKEN_URL  (if testing ANS)
+#   SMTP_HOST, SMTP_USER, SMTP_PASSWORD  (if testing SMTP)
 
 # Run locally (loads .env automatically via python-dotenv)
 python server.py

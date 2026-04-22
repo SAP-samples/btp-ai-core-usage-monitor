@@ -10,26 +10,26 @@ A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors da
 ┌─────────────────────────────────────────────────────────────┐
 │  SAP BTP Cloud Foundry                                      │
 │                                                             │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  ai-core-monitor (Python / Flask)                    │  │
-│  │                                                      │  │
-│  │  APScheduler ──► run_monitoring_job() [daily 07:00]  │  │
-│  │       │                                              │  │
-│  │       ▼                                              │  │
-│  │  UAS Reporting API ──► fetch usage (OAuth2)          │  │
-│  │       │                                              │  │
-│  │       ▼                                              │  │
-│  │  Aggregate ai-core capacity_units                    │  │
-│  │       │                                              │  │
-│  │       ▼                                              │  │
-│  │  Compare vs. SPENDING_LIMIT                          │  │
-│  │       │                                              │  │
-│  │       ├── < 60%  → INFO  (daily email if enabled)    │  │
-│  │       ├── ≥ 60%  → WARNING email 🟡                  │  │
-│  │       └── ≥ 80%  → ALERT email 🔴                    │  │
-│  │                                                      │  │
-│  │  Flask endpoints: /health  /status  /trigger         │  │
-│  └──────────────────────────────────────────────────────┘  │
+│  ┌──────────────────────────────────────────────────────┐   │
+│  │  ai-core-monitor (Python / Flask)                    │   │
+│  │                                                      │   │
+│  │  APScheduler ──► run_monitoring_job() [daily 07:00]  │   │
+│  │       │                                              │   │
+│  │       ▼                                              │   │
+│  │  UAS Reporting API ──► fetch usage (OAuth2)          │   │
+│  │       │                                              │   │
+│  │       ▼                                              │   │
+│  │  Aggregate ai-core capacity_units                    │   │
+│  │       │                                              │   │
+│  │       ▼                                              │   │
+│  │  Compare vs. SPENDING_LIMIT                          │   │
+│  │       │                                              │   │
+│  │       ├── < 60%  → INFO  (daily email if enabled)    │   │
+│  │       ├── ≥ 60%  → WARNING email 🟡                  │   │
+│  │       └── ≥ 80%  → ALERT email 🔴                    │   │
+│  │                                                      │   │
+│  │  Flask endpoints: /health  /status  /trigger         │   │
+│  └──────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -78,14 +78,14 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `SMTP_PORT` | | `587` | SMTP port |
 | `SMTP_USER` | ✅ (SMTP) | — | SMTP login username |
 | `SMTP_FROM` | | `SMTP_USER` | Sender address in the `From` header — set if your SMTP server requires a specific authorized address |
-| `SMTP_PASSWORD` | | — | SMTP password |
+| `SMTP_PASSWORD` | ✅ (SMTP) | — | SMTP password |
 | `SMTP_USE_TLS` | | `true` | Use STARTTLS (`true`) or SMTP_SSL (`false`) |
 | `ENABLE_ANS` | | `false` | Enable SAP Alert Notification Service |
 | `ANS_SERVICE_NAME` | | `ai-core-monitor-ans` | CF service instance name to use. When only one ANS instance is bound, it is found automatically by service label — this variable is only needed if multiple ANS instances are bound and you need to select a specific one |
-| `ANS_URL` | | — | ANS API URL (if not using CF service binding) |
-| `ANS_CLIENT_ID` | | — | ANS OAuth2 client ID (if not using CF binding) |
-| `ANS_CLIENT_SECRET` | | — | ANS OAuth2 client secret (if not using CF binding) |
-| `ANS_TOKEN_URL` | | — | ANS OAuth2 token URL (if not using CF binding) |
+| `ANS_URL` | ✅ (ANS Option B) | — | ANS API URL — not needed if using CF service binding |
+| `ANS_CLIENT_ID` | ✅ (ANS Option B) | — | ANS OAuth2 client ID — not needed if using CF service binding |
+| `ANS_CLIENT_SECRET` | ✅ (ANS Option B) | — | ANS OAuth2 client secret — not needed if using CF service binding |
+| `ANS_TOKEN_URL` | ✅ (ANS Option B) | — | ANS OAuth2 token URL — not needed if using CF service binding |
 
 ---
 

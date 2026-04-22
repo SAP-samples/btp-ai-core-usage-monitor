@@ -358,14 +358,16 @@ cf push
 ### 5. Set secrets
 
 ```bash
-# Only required if ENABLE_SMTP=true (set before or after cf push, then cf restage):
+# Only required if ENABLE_SMTP=true:
 cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
 
 # Only required when using explicit credentials (not CF service binding):
 cf set-env ai-core-monitor UAS_CLIENT_SECRET 'your-uas-client-secret'
 cf set-env ai-core-monitor ANS_CLIENT_SECRET 'your-ans-client-secret'
 
-cf restage ai-core-monitor
+# cf restart is sufficient after cf set-env (no rebuild needed)
+# Use cf restage only if you changed services: bindings or requirements.txt
+cf restart ai-core-monitor
 ```
 
 ### 6. Verify

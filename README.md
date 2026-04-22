@@ -37,6 +37,19 @@ A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors da
 
 ---
 
+## Notification Email Preview
+
+The HTML email includes:
+- 🟢/🟡/🔴 colour-coded alert banner
+- Key metrics: CU used, monthly limit, projected month-end
+- Visual progress bar
+- Per-model consumption breakdown table
+- Configured threshold reference
+
+![Email notification example](email_example.png)
+
+---
+
 ## Project Structure
 
 ```
@@ -422,17 +435,6 @@ When `dry_run=true`, usage is fetched and the alert level is computed, but **no 
   "error": null
 }
 ```
-
----
-
-## Notification Email Preview
-
-The HTML email includes:
-- 🟢/🟡/🔴 colour-coded alert banner
-- Key metrics: CU used, monthly limit, projected month-end
-- Visual progress bar
-- Per-model consumption breakdown table
-- Configured threshold reference
 
 ---
 

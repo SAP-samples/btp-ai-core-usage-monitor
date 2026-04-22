@@ -81,7 +81,7 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `SMTP_PASSWORD` | | — | SMTP password |
 | `SMTP_USE_TLS` | | `true` | Use STARTTLS (`true`) or SMTP_SSL (`false`) |
 | `ENABLE_ANS` | | `false` | Enable SAP Alert Notification Service |
-| `ANS_SERVICE_NAME` | | `ai-core-monitor-ans` | Name of the bound ANS CF service instance |
+| `ANS_SERVICE_NAME` | | `ai-core-monitor-ans` | CF service instance name — only needed if multiple ANS instances are bound |
 | `ANS_URL` | | — | ANS API URL (if not using CF service binding) |
 | `ANS_CLIENT_ID` | | — | ANS OAuth2 client ID (if not using CF binding) |
 | `ANS_CLIENT_SECRET` | | — | ANS OAuth2 client secret |
@@ -159,7 +159,7 @@ Map the fields to environment variables:
 |---|---|---|
 | `clientid` | `UAS_CLIENT_ID` | |
 | `clientsecret` | `UAS_CLIENT_SECRET` | |
-| `url` | `UAS_TOKEN_URL` | The XSUAA authentication endpoint |
+| `url` | `UAS_TOKEN_URL` | Append `/oauth/token` to the base URL from the service key |
 
 **1.4 — Verify the token (optional)**
 
@@ -185,7 +185,7 @@ SUBACCOUNT_ID: "your-subaccount-uuid"
 SPENDING_LIMIT: "50"
 NOTIFICATION_EMAIL: "your-team@company.com"
 UAS_CLIENT_ID: "sb-..."
-UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com"
+UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
 # UAS_REPORTING_BASE_URL is auto-derived from UAS_TOKEN_URL – only set if needed
 SMTP_HOST: "smtp.office365.com"
 SMTP_USER: "monitor@company.com"

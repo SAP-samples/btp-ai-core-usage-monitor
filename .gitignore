@@ -1,5 +1,6 @@
 # Local environment variables (contains secrets)
 .env
+manifest_ignored.yml
 
 # Python
 __pycache__/

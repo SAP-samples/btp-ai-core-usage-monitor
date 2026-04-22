@@ -35,7 +35,7 @@ applications:
       # Set it explicitly only if auto-detection does not work:
       # UAS_REPORTING_BASE_URL: "https://uas-reporting.cfapps.<region>.hana.ondemand.com"
       UAS_CLIENT_ID: "your-uas-client-id"
-      UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com"
+      UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
 
       # ── SMTP email ──────────────────────────────────────────────────────────
       # Set SMTP_PASSWORD via: cf set-env ai-core-monitor SMTP_PASSWORD "..."
@@ -48,9 +48,10 @@ applications:
 
       # ── SAP Alert Notification Service ──────────────────────────────────────
       # Set ENABLE_ANS=true and bind the alert-notification service instance,
-      # OR provide ANS_URL / ANS_CLIENT_ID / ANS_CLIENT_SECRET / ANS_TOKEN_URL
+      # OR provide ANS_URL / ANS_CLIENT_ID / ANS_CLIENT_SECRET / ANS_TOKEN_URL.
+      # ANS_SERVICE_NAME is only needed if multiple ANS instances are bound.
       ENABLE_ANS: "false"
-      ANS_SERVICE_NAME: "ai-core-monitor-ans"
+      # ANS_SERVICE_NAME: "ai-core-monitor-ans"
 
     # Bind the SAP Alert Notification Service instance here (optional)
     # services:

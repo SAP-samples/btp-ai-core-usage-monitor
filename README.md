@@ -100,15 +100,11 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 
 ## Step-by-Step Deployment
 
-### 1. Obtain UAS Reporting API Credentials
+### 1. Create the UAS Service Instance
 
-The Resource Consumption APIs of the **SAP Usage Data Management service** are protected with OAuth 2.0 Client Credentials. Follow the official SAP guide: [Configuration for Using the Resource Consumption APIs](https://help.sap.com/docs/btp/sap-business-technology-platform/configuration-for-using-resource-consumption-apis-in-sap-api-business-hub)
+Create a **Usage Data Management** (`uas`) service instance — required for both the CF binding and explicit credentials options.
 
-#### Step-by-step
-
-**1.1 — Create a service instance**
-
-The SAP Usage Data Management service (`uas`) has two relevant plans:
+The service has two relevant plans:
 
 | Plan | Use case | Scope granted |
 |---|---|---|
@@ -120,59 +116,12 @@ For monitoring a subaccount, use **`reporting-ga-admin`**.
 In the **BTP Cockpit** (Cloud Foundry environment):
 1. Navigate to your subaccount → **Services** → **Service Marketplace**
 2. Search for **"Usage Data Management Service (UDM)"** (technical name: `uas`)
-3. Select plan **`reporting-ga-admin`** and create a new instance
-4. Give the instance a name, e.g. `uas-reporting`
+3. Select plan **`reporting-ga-admin`** and create a new instance, e.g. named `uas-reporting`
 
 Or via CF CLI:
 ```bash
 cf create-service uas reporting-ga-admin uas-reporting
 ```
-
-**1.2 — Create a service key**
-
-In the BTP Cockpit:
-1. Open the service instance → **Service Keys** tab → **Create Service Key**
-2. Name it, e.g. `uas-reporting-key`, and click **Create**
-
-Or via CF CLI:
-```bash
-cf create-service-key uas-reporting uas-reporting-key
-cf service-key uas-reporting uas-reporting-key
-```
-
-**1.3 — Extract credentials from the service key**
-
-The service key JSON looks like this:
-```json
-{
-  "clientid":     "sb-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx!bXXXXX|uas-reporting!bXXX",
-  "clientsecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
-  "identityzone": "your-global-account-id",
-  "url":          "https://<global-account-id>.authentication.<region>.hana.ondemand.com",
-  "apiurl":       "https://api.authentication.<region>.hana.ondemand.com"
-}
-```
-
-Map the fields to environment variables:
-
-| Service key field | Environment variable | Notes |
-|---|---|---|
-| `clientid` | `UAS_CLIENT_ID` | |
-| `clientsecret` | `UAS_CLIENT_SECRET` | |
-| `url` | `UAS_TOKEN_URL` | Append `/oauth/token` to the base URL from the service key |
-
-**1.4 — Verify the token (optional)**
-
-```bash
-curl -L -X POST '<url>/oauth/token' \
-  -H 'Content-Type: application/x-www-form-urlencoded' \
-  -u '<clientid>:<clientsecret>' \
-  -d 'grant_type=client_credentials'
-```
-
-Where `<url>` is the `url` field from the service key.
-
-A successful response contains an `access_token` with scope `<xsappname>.Reporting.GA_Admin`.
 
 > **Role requirement:** The service principal must have access to the global account that owns the subaccount being monitored. If you receive a `403 Forbidden`, ensure the service instance was created at the correct account level.
 
@@ -181,25 +130,42 @@ A successful response contains an `access_token` with scope `<xsappname>.Reporti
 Edit `manifest.yml` and fill in the non-sensitive values.
 
 **Option A — CF service binding for UAS (recommended):**
+
+Add the `uas` instance to the `services:` section — credentials are read automatically from `VCAP_SERVICES`, no env vars needed:
 ```yaml
-# In the services: section, add your uas instance name:
 services:
   - uas-reporting          # your uas service instance name
   - ai-core-monitor-ans
 
-# No UAS_CLIENT_ID / UAS_CLIENT_SECRET / UAS_TOKEN_URL needed in env:
 env:
   SUBACCOUNT_ID: "your-subaccount-uuid"
   SPENDING_LIMIT: "50"
+  # ... SMTP settings if needed
 ```
 
-**Option B — Explicit credentials:**
+**Option B — Explicit UAS credentials:**
+
+Create a service key and map the fields to env vars:
+```bash
+cf create-service-key uas-reporting uas-reporting-key
+cf service-key uas-reporting uas-reporting-key
+```
+
+The service key JSON contains:
+```json
+{
+  "clientid":     "sb-xxxxxxxx!bXXXXX|uas-reporting!bXXX",
+  "clientsecret": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "url":          "https://<global-account-id>.authentication.<region>.hana.ondemand.com"
+}
+```
+
+Set in `manifest.yml`:
 ```yaml
 env:
   SUBACCOUNT_ID: "your-subaccount-uuid"
   SPENDING_LIMIT: "50"
-  NOTIFICATION_EMAIL: "your-team@company.com"   # required for SMTP
-  UAS_CLIENT_ID: "sb-..."
+  UAS_CLIENT_ID: "sb-..."                  # clientid from service key
   UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
   # UAS_REPORTING_BASE_URL is auto-derived from UAS_TOKEN_URL – only set if needed
 

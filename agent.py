@@ -1,7 +1,7 @@
 """
 agent.py
 --------
-Core monitoring logic and APScheduler setup for the AI Core Capacity Monitor.
+Core monitoring logic and APScheduler setup for the AI Core Consumption Monitor.
 
 The daily job:
   1. Fetches AI Core capacity unit usage for the current month via the UAS API
@@ -85,7 +85,7 @@ def run_monitoring_job() -> Dict:
     Returns the result dict (same structure as _last_result).
     """
     run_time = datetime.now(timezone.utc).isoformat()
-    logger.info("=== AI Core Capacity Monitor: starting daily check (%s) ===", run_time)
+    logger.info("=== AI Core Consumption Monitor: starting daily check (%s) ===", run_time)
 
     try:
         # ── Step 1: Fetch usage ───────────────────────────────────────────────

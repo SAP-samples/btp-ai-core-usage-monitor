@@ -1,4 +1,4 @@
-# AI Core Capacity Monitor
+# AI Core Consumption Monitor
 
 A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors daily AI Core capacity unit consumption. When consumption approaches a configured monthly spending limit, it sends notifications via **SMTP email** and/or **SAP Alert Notification Service (ANS)**.
 
@@ -68,7 +68,7 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `ALERT_THRESHOLD_PERCENT` | | `80` | % of limit that triggers an alert email |
 | `RECEIVE_DAILY_UPDATE_EMAILS` | | `true` | Send a daily summary even below warning threshold |
 | `NOTIFICATION_EMAIL` | ✅ (SMTP) | — | Comma-separated recipient email addresses |
-| `SENDER_NAME` | | `AI Core Monitor` | Display name in the From field |
+| `SENDER_NAME` | | `AI Core Consumption Monitor` | Display name in the From field |
 | `CHECK_TIME_UTC` | | `07:00` | Time of day (UTC) to run the daily check |
 | `UAS_CLIENT_ID` | ✅ | — | OAuth2 client ID for UAS Reporting API |
 | `UAS_CLIENT_SECRET` | ✅ | — | OAuth2 client secret for UAS Reporting API |
@@ -263,7 +263,7 @@ In the ANS dashboard (BTP cockpit → your ANS service instance → **Manage**):
 <table width="580" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;">
 
 <tr><td style="background:#0070f3;padding:20px 24px;">
-  <b style="color:#fff;font-size:18px;">🤖 AI Core Capacity Monitor</b>
+  <b style="color:#fff;font-size:18px;">🤖 AI Core Consumption Monitor</b>
   <p style="margin:4px 0 0;color:#cce4ff;font-size:12px;">SAP BTP · {tags.subaccountName}</p>
 </td></tr>
 
@@ -305,7 +305,7 @@ In the ANS dashboard (BTP cockpit → your ANS service instance → **Manage**):
 </td></tr>
 
 <tr><td style="padding:12px 24px;border-top:1px solid #dee2e6;font-size:11px;color:#adb5bd;text-align:center;">
-  AI Core Capacity Monitor · SAP BTP · {tags.subaccountName}<br>{ans-disclaimer}
+  AI Core Consumption Monitor · SAP BTP · {tags.subaccountName}<br>{ans-disclaimer}
 </td></tr>
 
 </table></td></tr></table>

@@ -11,20 +11,20 @@ applications:
     health-check-http-endpoint: /health
     env:
       # ── BTP Subaccount ──────────────────────────────────────────────────────
-      SUBACCOUNT_ID: "your-subaccount-uuid"
+      SUBACCOUNT_ID: "your-subaccount-uuid" # The UUID of the subaccount to monitor (from BTP cockpit URL)
 
       # ── Spending limit & thresholds ─────────────────────────────────────────
-      SPENDING_LIMIT: "100"
-      WARNING_THRESHOLD_PERCENT: "60"
-      ALERT_THRESHOLD_PERCENT: "80"
+      SPENDING_LIMIT: "100" # Monthly AI Core capacity unit budget
+      WARNING_THRESHOLD_PERCENT: "60" # Send a WARNING email when usage reaches this % of the limit
+      ALERT_THRESHOLD_PERCENT: "80" # Send an ALERT email when usage reaches this % of the limit
 
       # ── Notifications ───────────────────────────────────────────────────────
-      RECEIVE_DAILY_UPDATE_EMAILS: "true"
-      NOTIFICATION_EMAIL: "example@example.com"
-      SENDER_NAME: "AI Core Monitor"
+      RECEIVE_DAILY_UPDATE_EMAILS: "true" # Send a daily summary email even when below warning threshold
+      NOTIFICATION_EMAIL: "example@example.com" # Comma-separated list of recipient email addresses
+      SENDER_NAME: "AI Core Consumption Monitor" # Display name shown in the From field of notification emails
 
       # ── Schedule (UTC) ──────────────────────────────────────────────────────
-      CHECK_TIME_UTC: "07:00"
+      CHECK_TIME_UTC: "07:00" # Time of day (UTC) to run the daily check  (HH:MM format)
 
       # ── UAS Reporting API credentials ───────────────────────────────────────
       # Obtain from the Usage Data Management service key in BTP cockpit

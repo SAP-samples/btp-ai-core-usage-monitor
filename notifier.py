@@ -1,7 +1,7 @@
 """
 notifier.py
 -----------
-Notification channels for the AI Core Capacity Monitor.
+Notification channels for the AI Core Consumption Monitor.
 
 Supported channels:
   1. SMTP – sends an HTML email via any SMTP server
@@ -108,7 +108,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>AI Core Capacity Monitor</title>
+  <title>AI Core Consumption Monitor</title>
 </head>
 <body style="margin:0;padding:0;background-color:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:30px 0;">
@@ -120,7 +120,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
           <tr>
             <td style="background-color:#0070f3;padding:24px 32px;">
               <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">
-                🤖 AI Core Capacity Monitor
+                🤖 AI Core Consumption Monitor
               </h1>
               <p style="margin:4px 0 0;color:#cce4ff;font-size:13px;">
                 SAP BTP · {subaccount_name}
@@ -240,7 +240,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
           <tr>
             <td style="padding:24px 32px;border-top:1px solid #dee2e6;margin-top:24px;">
               <p style="margin:0;font-size:12px;color:#adb5bd;text-align:center;">
-                This report was generated automatically by the AI Core Capacity Monitor on {fetch_date}.<br>
+                This report was generated automatically by the AI Core Consumption Monitor on {fetch_date}.<br>
                 Running on SAP BTP Cloud Foundry · Subaccount: {subaccount_name}
               </p>
             </td>
@@ -294,7 +294,7 @@ def send_smtp_notification(usage: Dict, level: str) -> bool:
 
     # Plain-text fallback
     plain_text = (
-        f"AI Core Capacity Monitor – {_LEVEL_META[level]['label']}\n\n"
+        f"AI Core Consumption Monitor – {_LEVEL_META[level]['label']}\n\n"
         f"Subaccount: {usage.get('subaccount_name', cfg.subaccount_id)}\n"
         f"Total Capacity Units Used: {usage['total_cu']:.6f}\n"
         f"Monthly Spending Limit:    {cfg.spending_limit:.2f}\n"

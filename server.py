@@ -1,7 +1,7 @@
 """
 server.py
 ---------
-Flask web server for the AI Core Capacity Monitor.
+Flask web server for the AI Core Consumption Monitor.
 
 Cloud Foundry requires a web process that binds to $PORT.
 This server provides:

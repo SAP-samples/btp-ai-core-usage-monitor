@@ -1,7 +1,7 @@
 """
 config.py
 ---------
-Centralised configuration for the AI Core Capacity Monitor.
+Centralised configuration for the AI Core Consumption Monitor.
 All values are read from environment variables so the app can be
 configured via `cf set-env` or the manifest.yml without code changes.
 """
@@ -142,7 +142,7 @@ class Config:
         default_factory=lambda: _bool("SMTP_USE_TLS", True)
     )
     sender_name: str = field(
-        default_factory=lambda: os.environ.get("SENDER_NAME", "AI Core Monitor")
+        default_factory=lambda: os.environ.get("SENDER_NAME", "AI Core Consumption Monitor")
     )
 
     # ── SAP Alert Notification Service ────────────────────────────────────────

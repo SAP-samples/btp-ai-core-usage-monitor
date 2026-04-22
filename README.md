@@ -92,7 +92,7 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 ## Prerequisites
 
 1. **SAP BTP subaccount** with AI Core (Extended plan) enabled
-2. **Usage Data Management** service instance with a service key (for UAS API credentials)
+2. **Usage Data Management** (`uas`) service instance — bind it directly (Option A) or create a service key for explicit credentials (Option B)
 3. **CF CLI** installed and logged in to your BTP Cloud Foundry environment
 4. An **SMTP server** (e.g. Office 365, Gmail, SendGrid) — OR — an **SAP Alert Notification Service** instance
 
@@ -184,17 +184,14 @@ env:
 
 > See the official tutorial: [Getting Started with SAP Alert Notification Service for SAP BTP](https://developers.sap.com/tutorials/alert-notification-service..html)
 
-**3.1 — Create a service instance and service key**
+**Option A — CF service binding (recommended):**
 
+Create the ANS service instance and bind it — credentials are read automatically from `VCAP_SERVICES`:
 ```bash
 cf create-service alert-notification standard ai-core-monitor-ans
-cf create-service-key ai-core-monitor-ans ai-core-monitor-ans-key
-cf service-key ai-core-monitor-ans ai-core-monitor-ans-key
 ```
 
-**3.2 — Configure `manifest.yml`**
-
-Uncomment the `services` section and set `ENABLE_ANS`:
+Add to `manifest.yml`:
 ```yaml
 services:
   - ai-core-monitor-ans
@@ -204,7 +201,31 @@ env:
   ENABLE_SMTP: "false"   # set to false if ANS is your primary channel
 ```
 
-**3.3 — Create a condition and subscription**
+**Option B — Explicit ANS credentials:**
+
+Create a service key to extract credentials:
+```bash
+cf create-service alert-notification standard ai-core-monitor-ans
+cf create-service-key ai-core-monitor-ans ai-core-monitor-ans-key
+cf service-key ai-core-monitor-ans ai-core-monitor-ans-key
+```
+
+The service key contains `url`, `client_id`, `client_secret`, `oauth_url`. Set in `manifest.yml`:
+```yaml
+env:
+  ENABLE_ANS: "true"
+  ANS_URL: "https://clm-sl-ans-live-ans-service-api.cfapps.<region>.hana.ondemand.com"
+  ANS_CLIENT_ID: "sb-..."
+  ANS_TOKEN_URL: "https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token"
+```
+
+Set the secret via `cf set-env`:
+```bash
+cf set-env ai-core-monitor ANS_CLIENT_SECRET 'your-ans-client-secret'
+cf restage ai-core-monitor
+```
+
+**3.3 — Create a condition and subscription (both options)**
 
 In the ANS dashboard (BTP cockpit → your ANS service instance → **Manage**):
 

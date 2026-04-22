@@ -1,6 +1,6 @@
 # AI Core Consumption Monitor
 
-A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors daily AI Core capacity unit consumption. When consumption approaches a configured monthly spending limit, it sends notifications via **SMTP email** and/or **SAP Alert Notification Service (ANS)**.
+A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors daily AI Core capacity unit consumption. When consumption approaches a configured monthly spending limit, it sends notifications via **SMTP email** or **SAP Alert Notification Service (ANS)**.
 
 ---
 
@@ -105,9 +105,9 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 5. **XSUAA** service instance — for JWT-based endpoint protection
 6. **CF CLI** installed and authenticated (`cf login`)
 7. **Python 3.11+** (local development only — CF deployment uses `python-3.11.x` as specified in `runtime.txt`)
-8. One or both notification channels:
-   - **SMTP server** (e.g. Office 365, Gmail, SendGrid)
-   - **SAP Alert Notification Service** instance
+8. **Notification channel** — choose one:
+   - **SMTP server** (e.g. Office 365, Gmail, SendGrid) — set `ENABLE_SMTP=true` (default)
+   - **SAP Alert Notification Service** instance — set `ENABLE_ANS=true`
 
 ---
 
@@ -166,20 +166,26 @@ Set the following environment variables in `manifest.yml` (BTP) or `.env` (local
 
 </details>
 
-### 3. Configure the manifest
+### 3. Configure notifications
 
-Edit `manifest.yml` and fill in your values. Add the `uas` service instance to `services:`:
+Choose **one** notification channel:
+
+---
+
+**Option A — SMTP email (default)**
+
+SMTP is enabled by default in `manifest.yml`. Fill in your SMTP server details:
 
 ```yaml
 services:
-  - uas-reporting          # your uas service instance name
+  - uas-reporting
+  - ai-core-monitor-xsuaa
 
 env:
   SUBACCOUNT_ID: "your-subaccount-uuid"
   SPENDING_LIMIT: "50"
   NOTIFICATION_EMAIL: "your-team@company.com"
-
-  # ── SMTP (only required if ENABLE_SMTP=true) ──
+  ENABLE_SMTP: "true"
   SMTP_HOST: "smtp.office365.com"
   SMTP_PORT: "587"
   SMTP_USER: "monitor@company.com"
@@ -187,10 +193,14 @@ env:
   # SMTP_FROM: "monitor@company.com"  # only if your server requires a specific sender address
 ```
 
-> **Never put secrets in `manifest.yml`** — set them via `cf set-env` after the first deployment (see Step 5).
-> SMTP secret: `SMTP_PASSWORD`.
+Set the SMTP password after `cf push` (see Step 5):
+```bash
+cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
+```
 
-### 4. (Optional) Set up SAP Alert Notification Service
+---
+
+**Option B — SAP Alert Notification Service**
 
 > See the official tutorial: [Getting Started with SAP Alert Notification Service for SAP BTP](https://developers.sap.com/tutorials/alert-notification-service..html)
 
@@ -199,15 +209,18 @@ Create the ANS service instance and bind it — credentials are read automatical
 cf create-service alert-notification standard ai-core-monitor-ans
 ```
 
-Add to `manifest.yml`:
+Update `manifest.yml`:
 ```yaml
 services:
   - uas-reporting
+  - ai-core-monitor-xsuaa
   - ai-core-monitor-ans
 
 env:
+  SUBACCOUNT_ID: "your-subaccount-uuid"
+  SPENDING_LIMIT: "50"
+  ENABLE_SMTP: "false"
   ENABLE_ANS: "true"
-  ENABLE_SMTP: "false"   # set to false if ANS is your primary channel
 ```
 
 <details>
@@ -336,16 +349,16 @@ In the ANS dashboard (BTP cockpit → your ANS service instance → **Manage**):
    - Select the condition created in step 2
    - Select the action created in step 1
 
-### 5. Deploy
+### 4. Deploy
 
 ```bash
 cf push
 ```
 
-### 6. Set secrets
+### 5. Set secrets
 
 ```bash
-# Only required if ENABLE_SMTP=true:
+# Only required if ENABLE_SMTP=true (set before or after cf push, then cf restage):
 cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
 
 # Only required when using explicit credentials (not CF service binding):
@@ -355,7 +368,7 @@ cf set-env ai-core-monitor ANS_CLIENT_SECRET 'your-ans-client-secret'
 cf restage ai-core-monitor
 ```
 
-### 7. Verify
+### 6. Verify
 
 ```bash
 # Check app is running – the output shows the assigned random route

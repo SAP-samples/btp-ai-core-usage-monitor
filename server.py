@@ -21,6 +21,8 @@ try:
 except ImportError:
     pass
 
+import functools
+import json
 import logging
 import os
 import signal
@@ -41,6 +43,65 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+# ── XSUAA JWT validation ──────────────────────────────────────────────────────
+
+# When running on CF, XSUAA credentials are read from VCAP_SERVICES (service binding).
+# Locally (VCAP_SERVICES absent), JWT validation is skipped automatically.
+
+_local_mode = not bool(os.environ.get("VCAP_SERVICES"))
+_uaa_credentials = None
+
+if not _local_mode:
+    try:
+        vcap = json.loads(os.environ.get("VCAP_SERVICES", "{}"))
+        for service_list in vcap.values():
+            for svc in service_list:
+                if svc.get("label") == "xsuaa":
+                    _uaa_credentials = svc.get("credentials")
+                    logger.info(
+                        "XSUAA loaded from VCAP_SERVICES ('%s') — JWT validation ENABLED",
+                        svc.get("name"),
+                    )
+                    break
+            if _uaa_credentials:
+                break
+        if not _uaa_credentials:
+            logger.error(
+                "XSUAA service binding not found in VCAP_SERVICES — "
+                "all protected endpoints will return 401. "
+                "Bind an 'xsuaa' service instance to this app."
+            )
+    except (json.JSONDecodeError, Exception) as exc:
+        logger.error("Failed to parse VCAP_SERVICES for XSUAA: %s", exc)
+else:
+    logger.info("Local mode — JWT validation DISABLED")
+
+
+def require_auth(f):
+    """
+    Decorator: validate XSUAA JWT when running on CF.
+    Locally (no VCAP_SERVICES), validation is skipped for easy development.
+    """
+    @functools.wraps(f)
+    def decorated(*args, **kwargs):
+        if not _local_mode:
+            if not _uaa_credentials:
+                return jsonify({"error": "Unauthorized: XSUAA service binding not configured"}), 401
+            auth_header = request.headers.get("Authorization", "")
+            if not auth_header.startswith("Bearer "):
+                return jsonify({"error": "Unauthorized: Bearer token required"}), 401
+            token = auth_header[7:]
+            try:
+                from sap import xssec
+                xssec.create_security_context(token, _uaa_credentials)
+                logger.debug("JWT validated successfully")
+            except Exception as exc:
+                logger.warning("JWT validation failed: %s", exc)
+                return jsonify({"error": f"Unauthorized: {exc}"}), 401
+        return f(*args, **kwargs)
+    return decorated
+
+
 # ── Flask app ─────────────────────────────────────────────────────────────────
 
 app = Flask(__name__)
@@ -59,6 +120,7 @@ def health():
 
 
 @app.route("/status", methods=["GET"])
+@require_auth
 def status():
     """
     Return the result of the last monitoring run as JSON.
@@ -80,6 +142,7 @@ def status():
 
 
 @app.route("/trigger", methods=["POST"])
+@require_auth
 def trigger():
     """
     Manually trigger a monitoring check immediately (runs synchronously).
@@ -115,6 +178,7 @@ def trigger():
 
 
 @app.route("/config", methods=["GET"])
+@require_auth
 def show_config():
     """
     Return the active (non-sensitive) configuration as JSON.

@@ -60,6 +60,7 @@ ai-core-monitor/
 ├── notifier.py        # SMTP HTML email + SAP Alert Notification Service
 ├── config.py          # All configuration from environment variables
 ├── manifest.yml       # CF deployment manifest
+├── xs-security.json   # XSUAA security descriptor
 ├── Procfile           # gunicorn startup command
 ├── requirements.txt   # Python dependencies
 ├── runtime.txt        # Python version
@@ -83,9 +84,6 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `NOTIFICATION_EMAIL` | ✅ (SMTP) | — | Comma-separated recipient email addresses |
 | `SENDER_NAME` | | `AI Core Consumption Monitor` | Display name in the From field |
 | `CHECK_TIME_UTC` | | `07:00` | Time of day (UTC) to run the daily check |
-| `UAS_CLIENT_ID` | ✅ (Option B) | — | OAuth2 client ID — not needed if using CF service binding |
-| `UAS_CLIENT_SECRET` | ✅ (Option B) | — | OAuth2 client secret — not needed if using CF service binding |
-| `UAS_TOKEN_URL` | ✅ (Option B) | — | OAuth2 token endpoint URL (append `/oauth/token` to the `url` from the service key) — not needed if using CF service binding |
 | `ENABLE_SMTP` | | `true` | Enable SMTP email notifications |
 | `SMTP_HOST` | ✅ (SMTP) | — | SMTP server hostname |
 | `SMTP_PORT` | | `587` | SMTP port |
@@ -95,27 +93,35 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `SMTP_USE_TLS` | | `true` | Use STARTTLS (`true`) or SMTP_SSL (`false`) |
 | `ENABLE_ANS` | | `false` | Enable SAP Alert Notification Service |
 | `ANS_SERVICE_NAME` | | `ai-core-monitor-ans` | CF service instance name to use. When only one ANS instance is bound, it is found automatically by service label — this variable is only needed if multiple ANS instances are bound and you need to select a specific one |
-| `ANS_URL` | ✅ (ANS Option B) | — | ANS API URL — not needed if using CF service binding |
-| `ANS_CLIENT_ID` | ✅ (ANS Option B) | — | ANS OAuth2 client ID — not needed if using CF service binding |
-| `ANS_CLIENT_SECRET` | ✅ (ANS Option B) | — | ANS OAuth2 client secret — not needed if using CF service binding |
-| `ANS_TOKEN_URL` | ✅ (ANS Option B) | — | ANS OAuth2 token URL — not needed if using CF service binding |
 
 ---
 
 ## Prerequisites
 
-1. **SAP BTP subaccount** with AI Core (Extended plan) enabled
-2. **Usage Data Management** (`uas`) service instance — bind it directly (Option A) or create a service key for explicit credentials (Option B)
-3. **CF CLI** installed and logged in to your BTP Cloud Foundry environment
-4. An **SMTP server** (e.g. Office 365, Gmail, SendGrid) — OR — an **SAP Alert Notification Service** instance
+1. **SAP BTP subaccount** with a **Cloud Foundry environment** enabled
+2. **Cloud Foundry memory quota** — at least **256 MB** available in the CF org/space (`memory: 256M` in `manifest.yml`)
+3. **SAP AI Core** (Extended plan) active in the **subaccount whose usage you want to monitor** — this is the `SUBACCOUNT_ID` you configure
+4. **Usage Data Management** (`uas`) service instance (`reporting-ga-admin` plan) — for fetching consumption data via the UAS Reporting API
+5. **XSUAA** service instance — for JWT-based endpoint protection
+6. **CF CLI** installed and authenticated (`cf login`)
+7. **Python 3.11+** (local development only — CF deployment uses `python-3.11.x` as specified in `runtime.txt`)
+8. One or both notification channels:
+   - **SMTP server** (e.g. Office 365, Gmail, SendGrid)
+   - **SAP Alert Notification Service** instance
 
 ---
 
 ## Step-by-Step Deployment
 
-### 1. Create the UAS Service Instance
+### 1. Create the XSUAA service instance
 
-Create a **Usage Data Management** (`uas`) service instance — required for both the CF binding and explicit credentials options.
+```bash
+cf create-service xsuaa application ai-core-monitor-xsuaa -c xs-security.json
+```
+
+### 2. Create and bind the UAS service instance
+
+Create a **Usage Data Management** (`uas`) service instance and bind it to the app. Credentials are then read automatically from `VCAP_SERVICES` — no env vars needed.
 
 The service has two relevant plans:
 
@@ -124,41 +130,18 @@ The service has two relevant plans:
 | `reporting-ga-admin` | Reports for an entire **global account** (use this for subaccount monitoring) | `Reporting.GA_Admin` |
 | `reporting-directory` | Reports scoped to a specific **directory** | `reporting.Directory_Admin` |
 
-For monitoring a subaccount, use **`reporting-ga-admin`**.
+For monitoring a subaccount, use **`reporting-ga-admin`**:
 
-In the **BTP Cockpit** (Cloud Foundry environment):
-1. Navigate to your subaccount → **Services** → **Service Marketplace**
-2. Search for **"Usage Data Management Service (UDM)"** (technical name: `uas`)
-3. Select plan **`reporting-ga-admin`** and create a new instance, e.g. named `uas-reporting`
-
-Or via CF CLI:
 ```bash
 cf create-service uas reporting-ga-admin uas-reporting
 ```
 
 > **Role requirement:** The service principal must have access to the global account that owns the subaccount being monitored. If you receive a `403 Forbidden`, ensure the service instance was created at the correct account level.
 
-### 2. Configure the manifest
+<details>
+<summary>🔧 Alternative: explicit credentials (local dev or UAS provisioned in a different subaccount)</summary>
 
-Edit `manifest.yml` and fill in the non-sensitive values.
-
-**Option A — CF service binding for UAS (recommended):**
-
-Add the `uas` instance to the `services:` section — credentials are read automatically from `VCAP_SERVICES`, no env vars needed:
-```yaml
-services:
-  - uas-reporting          # your uas service instance name
-  - ai-core-monitor-ans
-
-env:
-  SUBACCOUNT_ID: "your-subaccount-uuid"
-  SPENDING_LIMIT: "50"
-  # ... SMTP settings if needed
-```
-
-**Option B — Explicit UAS credentials:**
-
-Create a service key and map the fields to env vars:
+Create a service key to extract credentials:
 ```bash
 cf create-service-key uas-reporting uas-reporting-key
 cf service-key uas-reporting uas-reporting-key
@@ -173,14 +156,28 @@ The service key JSON contains:
 }
 ```
 
-Set in `manifest.yml`:
+Set the following environment variables in `manifest.yml` (BTP) or `.env` (local dev):
+
+| Service key field | Environment variable | Notes |
+|---|---|---|
+| `clientid` | `UAS_CLIENT_ID` | |
+| `clientsecret` | `UAS_CLIENT_SECRET` | Set via `cf set-env` — never in `manifest.yml` |
+| `url` | `UAS_TOKEN_URL` | Append `/oauth/token` to the base URL |
+
+</details>
+
+### 3. Configure the manifest
+
+Edit `manifest.yml` and fill in your values. Add the `uas` service instance to `services:`:
+
 ```yaml
+services:
+  - uas-reporting          # your uas service instance name
+
 env:
   SUBACCOUNT_ID: "your-subaccount-uuid"
   SPENDING_LIMIT: "50"
-  UAS_CLIENT_ID: "sb-..."                  # clientid from service key
-  UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
-  # UAS_REPORTING_BASE_URL is auto-derived from UAS_TOKEN_URL – only set if needed
+  NOTIFICATION_EMAIL: "your-team@company.com"
 
   # ── SMTP (only required if ENABLE_SMTP=true) ──
   SMTP_HOST: "smtp.office365.com"
@@ -191,13 +188,11 @@ env:
 ```
 
 > **Never put secrets in `manifest.yml`** — set them via `cf set-env` after the first deployment (see Step 5).
-> SMTP secret: `SMTP_PASSWORD`. UAS secret (Option B only): `UAS_CLIENT_SECRET`.
+> SMTP secret: `SMTP_PASSWORD`.
 
-### 3. (Optional) Set up SAP Alert Notification Service
+### 4. (Optional) Set up SAP Alert Notification Service
 
 > See the official tutorial: [Getting Started with SAP Alert Notification Service for SAP BTP](https://developers.sap.com/tutorials/alert-notification-service..html)
-
-**Option A — CF service binding (recommended):**
 
 Create the ANS service instance and bind it — credentials are read automatically from `VCAP_SERVICES`:
 ```bash
@@ -207,6 +202,7 @@ cf create-service alert-notification standard ai-core-monitor-ans
 Add to `manifest.yml`:
 ```yaml
 services:
+  - uas-reporting
   - ai-core-monitor-ans
 
 env:
@@ -214,24 +210,25 @@ env:
   ENABLE_SMTP: "false"   # set to false if ANS is your primary channel
 ```
 
-**Option B — Explicit ANS credentials:**
+<details>
+<summary>🔧 Alternative: explicit credentials (local dev or ANS provisioned in a different subaccount)</summary>
 
 Create a service key to extract credentials:
 ```bash
-cf create-service alert-notification standard ai-core-monitor-ans
 cf create-service-key ai-core-monitor-ans ai-core-monitor-ans-key
 cf service-key ai-core-monitor-ans ai-core-monitor-ans-key
 ```
 
-The service key contains `url`, `client_id`, `client_secret`, `oauth_url`. Set in `manifest.yml`:
-```yaml
-env:
-  ENABLE_ANS: "true"
-  ANS_URL: "https://clm-sl-ans-live-ans-service-api.cfapps.<region>.hana.ondemand.com"
-  ANS_CLIENT_ID: "sb-..."
-  ANS_TOKEN_URL: "https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token"
-  # ANS_CLIENT_SECRET is a secret – set it via cf set-env after cf push (see Step 5)
-```
+The service key contains `url`, `client_id`, `client_secret`, `oauth_url`. Set the following environment variables in `manifest.yml` (BTP) or `.env` (local dev):
+
+| Service key field | Environment variable | Notes |
+|---|---|---|
+| `url` | `ANS_URL` | ANS API base URL |
+| `client_id` | `ANS_CLIENT_ID` | |
+| `client_secret` | `ANS_CLIENT_SECRET` | Set via `cf set-env` — never in `manifest.yml` |
+| `oauth_url` | `ANS_TOKEN_URL` | Already includes `/oauth/token` — use as-is |
+
+</details>
 
 **Create a condition and subscription**
 
@@ -339,28 +336,26 @@ In the ANS dashboard (BTP cockpit → your ANS service instance → **Manage**):
    - Select the condition created in step 2
    - Select the action created in step 1
 
-### 4. Deploy
+### 5. Deploy
 
 ```bash
 cf push
 ```
 
-### 5. Set secrets
+### 6. Set secrets
 
 ```bash
-# Only required if using UAS Option B (explicit credentials, not CF service binding):
-cf set-env ai-core-monitor UAS_CLIENT_SECRET 'your-uas-client-secret'
-
 # Only required if ENABLE_SMTP=true:
 cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
 
-# Only required if using ANS Option B (explicit credentials, not CF service binding):
+# Only required when using explicit credentials (not CF service binding):
+cf set-env ai-core-monitor UAS_CLIENT_SECRET 'your-uas-client-secret'
 cf set-env ai-core-monitor ANS_CLIENT_SECRET 'your-ans-client-secret'
 
 cf restage ai-core-monitor
 ```
 
-### 6. Verify
+### 7. Verify
 
 ```bash
 # Check app is running – the output shows the assigned random route
@@ -372,31 +367,38 @@ APP_URL="https://$(cf app ai-core-monitor | grep -E '^routes:' | awk '{print $2}
 # View logs
 cf logs ai-core-monitor --recent
 
-# Check health endpoint
+# Check health endpoint (no auth required)
 curl "$APP_URL/health"
 
+# Get a Bearer token from XSUAA (clientid/clientsecret from the xsuaa service key)
+TOKEN=$(curl -s -X POST \
+  'https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token' \
+  -u '<clientid>:<clientsecret>' \
+  -d 'grant_type=client_credentials' | jq -r .access_token)
+
 # View last monitoring result
-curl "$APP_URL/status"
+curl -H "Authorization: Bearer $TOKEN" "$APP_URL/status"
 
 # Manually trigger a check (dry run – no emails sent)
 curl -X POST "$APP_URL/trigger" \
+  -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"dry_run": true}'
 
 # Manually trigger a real check (sends notifications if thresholds are met)
-curl -X POST "$APP_URL/trigger"
+curl -X POST "$APP_URL/trigger" -H "Authorization: Bearer $TOKEN"
 ```
 
 ---
 
 ## API Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/health` | Liveness probe — returns `{"status": "ok"}` |
-| `GET` | `/status` | Last monitoring result as JSON |
-| `GET` | `/config` | Active configuration (credentials masked) |
-| `POST` | `/trigger` | Run a monitoring check immediately |
+| Method | Path | Protected | Description |
+|---|---|---|---|
+| `GET` | `/health` | ❌ | Liveness probe — returns `{"status": "ok"}` |
+| `GET` | `/status` | ✅ | Last monitoring result as JSON |
+| `GET` | `/config` | ✅ | Active configuration (credentials masked) |
+| `POST` | `/trigger` | ✅ | Run a monitoring check immediately |
 
 ### `/trigger` request body (optional)
 
@@ -438,9 +440,30 @@ When `dry_run=true`, usage is fetched and the alert level is computed, but **no 
 
 ---
 
+## Security
+
+The app uses **SAP XSUAA** (OAuth2 JWT) to protect the `/status`, `/config`, and `/trigger` endpoints.
+
+**On BTP:** An `xsuaa` service instance must be bound to the app (see Step 1). If the binding is missing, all protected endpoints return `401`.
+
+**Locally:** JWT validation is automatically disabled when `VCAP_SERVICES` is not set — all endpoints are accessible without a token.
+
+To obtain a token for testing against a deployed instance:
+```bash
+# Get a token from XSUAA (clientid/clientsecret from the xsuaa service key)
+TOKEN=$(curl -s -X POST \
+  'https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token' \
+  -u '<clientid>:<clientsecret>' \
+  -d 'grant_type=client_credentials' | jq -r .access_token)
+
+curl -H "Authorization: Bearer $TOKEN" "$APP_URL/status"
+```
+
+---
+
 ## Local Development
 
-> ⚠️ CF service bindings (`VCAP_SERVICES`) are not available locally. Use **Option B** (explicit credentials) for both UAS and ANS when running locally — set all required values in `.env`.
+> ⚠️ CF service bindings (`VCAP_SERVICES`) are not available locally. Use **explicit credentials** for both UAS and ANS when running locally — set all required values in `.env`.
 
 ```bash
 # Install dependencies
@@ -468,7 +491,9 @@ curl -X POST http://localhost:8080/trigger -H "Content-Type: application/json" -
 | Symptom | Likely cause | Fix |
 |---|---|---|
 | `SUBACCOUNT_ID is required` in logs | Env var not set | `cf set-env ai-core-monitor SUBACCOUNT_ID "..."` then `cf restage` |
-| `401 Unauthorized` from UAS API | Wrong credentials | Verify `UAS_CLIENT_ID`, `UAS_CLIENT_SECRET`, `UAS_TOKEN_URL` |
+| `401 Unauthorized` on `/status`, `/trigger`, `/config` | Missing or invalid Bearer token | Obtain a token from XSUAA (see Security section) |
+| `401` with `XSUAA service binding not configured` | XSUAA not bound | Ensure `ai-core-monitor-xsuaa` is in `services:` and `cf push` was run |
+| `401 Unauthorized` from UAS API | Wrong UAS credentials | Verify `UAS_CLIENT_ID`, `UAS_CLIENT_SECRET`, `UAS_TOKEN_URL` |
 | `0.0 CU` reported | No AI Core usage this month, or wrong subaccount ID | Check subaccount ID and date range |
 | Emails not arriving | SMTP misconfiguration | Check `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` |
 | ANS events not routing | No ANS subscription configured | Create a subscription in the ANS dashboard for event type `AI_CORE_CAPACITY_MONITOR` |

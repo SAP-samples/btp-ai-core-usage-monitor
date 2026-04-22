@@ -1,0 +1,10 @@
+{
+  "xsappname": "ai-core-monitor",
+  "tenant-mode": "dedicated",
+  "description": "XSUAA security descriptor for AI Core Consumption Monitor",
+  "scopes": [],
+  "role-templates": [],
+  "oauth2-configuration": {
+    "token-validity": 43200
+  }
+}

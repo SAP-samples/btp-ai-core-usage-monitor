@@ -25,39 +25,37 @@ applications:
       SENDER_NAME: "AI Core Consumption Monitor" # Display name shown in the From field of notification emails
 
       # ── Schedule (UTC) ──────────────────────────────────────────────────────
-      CHECK_TIME_UTC: "07:00" # Time of day (UTC) to run the daily check  (HH:MM format)
-
-      # ── UAS Reporting API credentials ───────────────────────────────────────
-      # Option A (recommended): bind the 'uas' service instance below in `services:`
-      #   → credentials are read automatically from VCAP_SERVICES, no env vars needed.
-      #
-      # Option B: provide credentials explicitly (set secret via cf set-env)
-      #   cf set-env ai-core-monitor UAS_CLIENT_SECRET '...'
-      # UAS_CLIENT_ID: "sb-..."
-      # UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
-      # UAS_REPORTING_BASE_URL is optional – derived automatically from UAS_TOKEN_URL
-      # UAS_REPORTING_BASE_URL: "https://uas-reporting.cfapps.<region>.hana.ondemand.com"
-      UAS_CLIENT_ID: "your-uas-client-id"
-      UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
+      CHECK_TIME_UTC: "07:00" # Time of day (UTC) to run the daily check (HH:MM format)
 
       # ── SMTP email ──────────────────────────────────────────────────────────
-      # Set SMTP_PASSWORD via: cf set-env ai-core-monitor SMTP_PASSWORD "..."
+      # Set SMTP_PASSWORD via: cf set-env ai-core-monitor SMTP_PASSWORD '...'
       ENABLE_SMTP: "true"
       SMTP_HOST: "smtp.example.com"
       SMTP_PORT: "587"
       SMTP_USER: "monitor@example.com"
-      # SMTP_FROM: "monitor@example.com"  # Sender address; defaults to SMTP_USER
+      # SMTP_FROM: "monitor@example.com"  # only if your server requires a specific sender address
       SMTP_USE_TLS: "true"
 
       # ── SAP Alert Notification Service ──────────────────────────────────────
-      # Set ENABLE_ANS=true and bind the alert-notification service instance,
-      # OR provide ANS_URL / ANS_CLIENT_ID / ANS_CLIENT_SECRET / ANS_TOKEN_URL.
+      # Bind the alert-notification service instance in `services:` below (recommended).
       # ANS_SERVICE_NAME is only needed if multiple ANS instances are bound.
       ENABLE_ANS: "false"
       # ANS_SERVICE_NAME: "ai-core-monitor-ans"
 
-    # Bind CF service instances here.
-    # Option A for UAS: add your 'uas' service instance name to avoid managing credentials manually.
-    # services:
-    #   - ai-core-monitor-ans
-    #   - uas-reporting   # uncomment to use CF service binding for UAS credentials
+      # ── Explicit credentials (alternative to CF service binding) ────────────
+      # Use when UAS/ANS are provisioned in a different subaccount, or for local dev.
+      # Set secrets via cf set-env (never put secrets in this file):
+      #   cf set-env ai-core-monitor UAS_CLIENT_SECRET '...'
+      #   cf set-env ai-core-monitor ANS_CLIENT_SECRET '...'
+      # UAS_CLIENT_ID: "sb-..."
+      # UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
+      # ANS_URL: "https://clm-sl-ans-live-ans-service-api.cfapps.<region>.hana.ondemand.com"
+      # ANS_CLIENT_ID: "sb-..."
+      # ANS_TOKEN_URL: "https://<subaccount>.authentication.<region>.hana.ondemand.com/oauth/token"
+
+    # ── CF service bindings ────────────────────────────────────────────────────
+    # Credentials are read automatically from VCAP_SERVICES.
+    services:
+      - uas-reporting        # Usage Data Management service instance
+      - ai-core-monitor-xsuaa  # XSUAA – required for JWT validation on BTP
+      - ai-core-monitor-ans  # Alert Notification Service instance (optional)

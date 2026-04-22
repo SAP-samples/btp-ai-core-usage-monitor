@@ -102,9 +102,6 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 
 ### 1. Obtain UAS Reporting API Credentials
 
-> **Tip — CF service binding (Option A):** Instead of managing credentials manually, you can bind the `uas` service instance directly to the app. The app reads credentials automatically from `VCAP_SERVICES` — no `UAS_CLIENT_ID` / `UAS_CLIENT_SECRET` / `UAS_TOKEN_URL` env vars needed. See [Step 2](#2-configure-the-manifest) for how to add it to `manifest.yml`.
-
-
 The Resource Consumption APIs of the **SAP Usage Data Management service** are protected with OAuth 2.0 Client Credentials. Follow the official SAP guide: [Configuration for Using the Resource Consumption APIs](https://help.sap.com/docs/btp/sap-business-technology-platform/configuration-for-using-resource-consumption-apis-in-sap-api-business-hub)
 
 #### Step-by-step

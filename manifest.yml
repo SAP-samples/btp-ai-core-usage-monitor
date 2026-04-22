@@ -30,8 +30,6 @@ applications:
       # ── UAS Reporting API credentials ───────────────────────────────────────
       # Option A (recommended): bind the 'uas' service instance below in `services:`
       #   → credentials are read automatically from VCAP_SERVICES, no env vars needed.
-      #   UAS_SERVICE_NAME is optional – only needed if multiple 'uas' instances are bound.
-      # UAS_SERVICE_NAME: "uas-reporting"
       #
       # Option B: provide credentials explicitly (set secret via cf set-env)
       #   cf set-env ai-core-monitor UAS_CLIENT_SECRET '...'

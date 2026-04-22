@@ -29,8 +29,8 @@ logger = logging.getLogger(__name__)
 def _get_uas_credentials() -> Optional[Dict]:
     """
     Resolve UAS credentials from either:
-      1. CF service binding (VCAP_SERVICES) – preferred when running on BTP
-         Looks for a service with label 'uas' or name matching UAS_SERVICE_NAME.
+      1. CF service binding (VCAP_SERVICES) – preferred when running on BTP.
+         Found automatically by service label 'uas' – no extra config needed.
       2. Explicit environment variables (UAS_CLIENT_ID, UAS_CLIENT_SECRET, UAS_TOKEN_URL).
     """
     # Try CF service binding first
@@ -42,7 +42,7 @@ def _get_uas_credentials() -> Optional[Dict]:
 
     for service_list in vcap.values():
         for svc in service_list:
-            if svc.get("label") == "uas" or svc.get("name") == cfg.uas_service_name:
+            if svc.get("label") == "uas":
                 creds = svc.get("credentials", {})
                 base_url = creds.get("url", "").rstrip("/")
                 token_url = f"{base_url}/oauth/token" if base_url else ""

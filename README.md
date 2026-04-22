@@ -70,7 +70,6 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `NOTIFICATION_EMAIL` | ✅ (SMTP) | — | Comma-separated recipient email addresses |
 | `SENDER_NAME` | | `AI Core Consumption Monitor` | Display name in the From field |
 | `CHECK_TIME_UTC` | | `07:00` | Time of day (UTC) to run the daily check |
-| `UAS_SERVICE_NAME` | | — | CF service instance name for UAS binding — only needed if multiple `uas` instances are bound |
 | `UAS_CLIENT_ID` | ✅ (Option B) | — | OAuth2 client ID — not needed if using CF service binding |
 | `UAS_CLIENT_SECRET` | ✅ (Option B) | — | OAuth2 client secret — not needed if using CF service binding |
 | `UAS_TOKEN_URL` | ✅ (Option B) | — | OAuth2 token endpoint URL (append `/oauth/token` to the `url` from the service key) — not needed if using CF service binding |

@@ -79,13 +79,10 @@ class Config:
     # ── UAS Reporting API ─────────────────────────────────────────────────────
     # Credentials can come from a CF service binding (preferred) or explicit env vars.
     # Option A – CF service binding: bind a 'uas' service instance in manifest.yml.
-    #   UAS_SERVICE_NAME selects the instance by name (optional if only one is bound).
+    #   The binding is found automatically by service label – no extra config needed.
     # Option B – Explicit env vars: set UAS_CLIENT_ID, UAS_CLIENT_SECRET, UAS_TOKEN_URL.
     #
     # UAS_REPORTING_BASE_URL is always optional – derived from the token URL region.
-    uas_service_name: str = field(
-        default_factory=lambda: os.environ.get("UAS_SERVICE_NAME", "")
-    )
     uas_reporting_base_url: str = field(
         default_factory=lambda: os.environ.get("UAS_REPORTING_BASE_URL", "")
     )

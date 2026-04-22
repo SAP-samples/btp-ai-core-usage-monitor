@@ -9,7 +9,10 @@ Responsibilities:
   - Filter and aggregate AI Core capacity units
 """
 
+import json
 import logging
+import os
+import re
 import time
 from datetime import date, datetime
 from typing import Dict, List, Optional
@@ -20,7 +23,63 @@ from config import cfg
 
 logger = logging.getLogger(__name__)
 
-# ── OAuth2 token cache ────────────────────────────────────────────────────────
+# ── Credential resolution ─────────────────────────────────────────────────────
+
+
+def _get_uas_credentials() -> Optional[Dict]:
+    """
+    Resolve UAS credentials from either:
+      1. CF service binding (VCAP_SERVICES) – preferred when running on BTP
+         Looks for a service with label 'uas' or name matching UAS_SERVICE_NAME.
+      2. Explicit environment variables (UAS_CLIENT_ID, UAS_CLIENT_SECRET, UAS_TOKEN_URL).
+    """
+    # Try CF service binding first
+    vcap_raw = os.environ.get("VCAP_SERVICES", "{}")
+    try:
+        vcap = json.loads(vcap_raw)
+    except json.JSONDecodeError:
+        vcap = {}
+
+    for service_list in vcap.values():
+        for svc in service_list:
+            if svc.get("label") == "uas" or svc.get("name") == cfg.uas_service_name:
+                creds = svc.get("credentials", {})
+                base_url = creds.get("url", "").rstrip("/")
+                token_url = f"{base_url}/oauth/token" if base_url else ""
+                logger.info(
+                    "Using UAS credentials from CF service binding '%s'", svc.get("name")
+                )
+                return {
+                    "client_id": creds.get("clientid", ""),
+                    "client_secret": creds.get("clientsecret", ""),
+                    "token_url": token_url,
+                }
+
+    # Fall back to explicit env vars
+    if cfg.uas_client_id and cfg.uas_client_secret and cfg.uas_token_url:
+        return {
+            "client_id": cfg.uas_client_id,
+            "client_secret": cfg.uas_client_secret,
+            "token_url": cfg.uas_token_url,
+        }
+
+    return None
+
+
+def _derive_reporting_url(token_url: str) -> str:
+    """Derive the UAS Reporting base URL from the token URL region."""
+    if cfg.uas_reporting_base_url:
+        return cfg.uas_reporting_base_url.rstrip("/")
+    match = re.search(
+        r"\.authentication\.([a-z0-9\-]+)\.hana\.ondemand\.com", token_url
+    )
+    if match:
+        region = match.group(1)
+        return f"https://uas-reporting.cfapps.{region}.hana.ondemand.com"
+    return ""
+
+
+# ── OAuth2 token cache ─────────────────────────────────────────────────────────
 
 _token_cache: Dict[str, object] = {
     "access_token": None,
@@ -31,20 +90,25 @@ _token_cache: Dict[str, object] = {
 def _get_access_token() -> str:
     """
     Fetch (or return cached) OAuth2 access token for the UAS Reporting API.
+    Credentials are resolved from CF service binding or explicit env vars.
     Tokens are cached until 60 seconds before expiry.
     """
     now = time.time()
     if _token_cache["access_token"] and now < _token_cache["expires_at"]:
         return _token_cache["access_token"]
 
-    logger.info("Fetching new OAuth2 token from %s", cfg.uas_token_url)
+    creds = _get_uas_credentials()
+    if not creds:
+        raise RuntimeError(
+            "UAS credentials not found. Bind a 'uas' service instance or set "
+            "UAS_CLIENT_ID, UAS_CLIENT_SECRET, and UAS_TOKEN_URL."
+        )
+
+    logger.info("Fetching new OAuth2 token from %s", creds["token_url"])
     resp = requests.post(
-        cfg.uas_token_url,
-        data={
-            "grant_type": "client_credentials",
-            "client_id": cfg.uas_client_id,
-            "client_secret": cfg.uas_client_secret,
-        },
+        creds["token_url"],
+        auth=(creds["client_id"], creds["client_secret"]),  # SAP XSUAA: Basic Auth
+        data={"grant_type": "client_credentials"},
         timeout=30,
     )
     resp.raise_for_status()
@@ -55,6 +119,8 @@ def _get_access_token() -> str:
 
     _token_cache["access_token"] = access_token
     _token_cache["expires_at"] = now + expires_in - 60  # 60-second safety margin
+    # Store resolved token_url for reporting URL derivation
+    _token_cache["token_url"] = creds["token_url"]
 
     logger.info("OAuth2 token obtained, expires in %d seconds", expires_in)
     return access_token
@@ -76,11 +142,12 @@ def fetch_subaccount_usage(from_date: date, to_date: date) -> List[dict]:
     """
     token = _get_access_token()
 
-    reporting_url = cfg._resolved_uas_reporting_base_url()
+    token_url = str(_token_cache.get("token_url", cfg.uas_token_url))
+    reporting_url = _derive_reporting_url(token_url)
     if not reporting_url:
         raise ValueError(
             "Cannot determine UAS Reporting URL. "
-            "Set UAS_REPORTING_BASE_URL or ensure UAS_TOKEN_URL contains a "
+            "Set UAS_REPORTING_BASE_URL or ensure the token URL contains a "
             "recognisable region (e.g. .authentication.eu10.hana.ondemand.com)."
         )
     url = f"{reporting_url}/reports/v1/subaccountUsage"

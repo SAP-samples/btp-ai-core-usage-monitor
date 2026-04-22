@@ -77,10 +77,15 @@ class Config:
     )
 
     # ── UAS Reporting API ─────────────────────────────────────────────────────
-    # If UAS_REPORTING_BASE_URL is not set, it is derived automatically from
-    # UAS_TOKEN_URL by extracting the region code.
-    # Token URL pattern:    https://<id>.authentication.<region>.hana.ondemand.com
-    # Reporting URL pattern: https://uas-reporting.cfapps.<region>.hana.ondemand.com
+    # Credentials can come from a CF service binding (preferred) or explicit env vars.
+    # Option A – CF service binding: bind a 'uas' service instance in manifest.yml.
+    #   UAS_SERVICE_NAME selects the instance by name (optional if only one is bound).
+    # Option B – Explicit env vars: set UAS_CLIENT_ID, UAS_CLIENT_SECRET, UAS_TOKEN_URL.
+    #
+    # UAS_REPORTING_BASE_URL is always optional – derived from the token URL region.
+    uas_service_name: str = field(
+        default_factory=lambda: os.environ.get("UAS_SERVICE_NAME", "")
+    )
     uas_reporting_base_url: str = field(
         default_factory=lambda: os.environ.get("UAS_REPORTING_BASE_URL", "")
     )
@@ -93,29 +98,6 @@ class Config:
     uas_token_url: str = field(
         default_factory=lambda: os.environ.get("UAS_TOKEN_URL", "")
     )
-
-    def _resolved_uas_reporting_base_url(self) -> str:
-        """
-        Return the UAS Reporting base URL.
-        If UAS_REPORTING_BASE_URL is set explicitly, use it as-is.
-        Otherwise, derive it from UAS_TOKEN_URL by extracting the region code.
-        Example:
-          token URL:    https://abc123.authentication.eu10.hana.ondemand.com
-          reporting URL: https://uas-reporting.cfapps.eu10.hana.ondemand.com
-        """
-        if self.uas_reporting_base_url:
-            return self.uas_reporting_base_url.rstrip("/")
-        # Try to extract region from token URL
-        # Pattern: https://<anything>.authentication.<region>.hana.ondemand.com
-        import re
-        match = re.search(
-            r"\.authentication\.([a-z0-9\-]+)\.hana\.ondemand\.com",
-            self.uas_token_url,
-        )
-        if match:
-            region = match.group(1)
-            return f"https://uas-reporting.cfapps.{region}.hana.ondemand.com"
-        return ""
 
     # ── SMTP email ────────────────────────────────────────────────────────────
     enable_smtp: bool = field(
@@ -176,17 +158,15 @@ class Config:
             errors.append("SUBACCOUNT_ID is required")
         if self.spending_limit <= 0:
             errors.append("SPENDING_LIMIT must be a positive number")
-        if not self.uas_client_id:
-            errors.append("UAS_CLIENT_ID is required")
-        if not self.uas_client_secret:
-            errors.append("UAS_CLIENT_SECRET is required")
-        if not self.uas_token_url:
-            errors.append("UAS_TOKEN_URL is required")
-        elif not self._resolved_uas_reporting_base_url():
+        # UAS credentials: either a CF service binding OR explicit env vars must be present.
+        # The actual binding check happens at runtime in usage_client._get_uas_credentials().
+        # Here we only validate explicit env vars when no binding name is configured.
+        has_explicit_creds = self.uas_client_id and self.uas_client_secret and self.uas_token_url
+        has_binding_hint = bool(os.environ.get("VCAP_SERVICES", "{}").strip() not in ("{}", ""))
+        if not has_explicit_creds and not has_binding_hint:
             errors.append(
-                "Cannot derive UAS_REPORTING_BASE_URL from UAS_TOKEN_URL. "
-                "Set UAS_REPORTING_BASE_URL explicitly "
-                "(e.g. https://uas-reporting.cfapps.<region>.hana.ondemand.com)"
+                "UAS credentials not configured. Either bind a 'uas' service instance "
+                "or set UAS_CLIENT_ID, UAS_CLIENT_SECRET, and UAS_TOKEN_URL."
             )
         if self.enable_smtp:
             if not self.smtp_host:

@@ -70,9 +70,10 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `NOTIFICATION_EMAIL` | ✅ (SMTP) | — | Comma-separated recipient email addresses |
 | `SENDER_NAME` | | `AI Core Consumption Monitor` | Display name in the From field |
 | `CHECK_TIME_UTC` | | `07:00` | Time of day (UTC) to run the daily check |
-| `UAS_CLIENT_ID` | ✅ | — | OAuth2 client ID for UAS Reporting API |
-| `UAS_CLIENT_SECRET` | ✅ | — | OAuth2 client secret for UAS Reporting API |
-| `UAS_TOKEN_URL` | ✅ | — | OAuth2 token endpoint URL |
+| `UAS_SERVICE_NAME` | | — | CF service instance name for UAS binding — only needed if multiple `uas` instances are bound |
+| `UAS_CLIENT_ID` | ✅ (Option B) | — | OAuth2 client ID — not needed if using CF service binding |
+| `UAS_CLIENT_SECRET` | ✅ (Option B) | — | OAuth2 client secret — not needed if using CF service binding |
+| `UAS_TOKEN_URL` | ✅ (Option B) | — | OAuth2 token endpoint URL (append `/oauth/token` to the `url` from the service key) — not needed if using CF service binding |
 | `ENABLE_SMTP` | | `true` | Enable SMTP email notifications |
 | `SMTP_HOST` | ✅ (SMTP) | — | SMTP server hostname |
 | `SMTP_PORT` | | `587` | SMTP port |
@@ -81,11 +82,11 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `SMTP_PASSWORD` | | — | SMTP password |
 | `SMTP_USE_TLS` | | `true` | Use STARTTLS (`true`) or SMTP_SSL (`false`) |
 | `ENABLE_ANS` | | `false` | Enable SAP Alert Notification Service |
-| `ANS_SERVICE_NAME` | | `ai-core-monitor-ans` | CF service instance name — only needed if multiple ANS instances are bound |
+| `ANS_SERVICE_NAME` | | `ai-core-monitor-ans` | CF service instance name to use. When only one ANS instance is bound, it is found automatically by service label — this variable is only needed if multiple ANS instances are bound and you need to select a specific one |
 | `ANS_URL` | | — | ANS API URL (if not using CF service binding) |
 | `ANS_CLIENT_ID` | | — | ANS OAuth2 client ID (if not using CF binding) |
-| `ANS_CLIENT_SECRET` | | — | ANS OAuth2 client secret |
-| `ANS_TOKEN_URL` | | — | ANS OAuth2 token URL |
+| `ANS_CLIENT_SECRET` | | — | ANS OAuth2 client secret (if not using CF binding) |
+| `ANS_TOKEN_URL` | | — | ANS OAuth2 token URL (if not using CF binding) |
 
 ---
 
@@ -101,6 +102,9 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 ## Step-by-Step Deployment
 
 ### 1. Obtain UAS Reporting API Credentials
+
+> **Tip — CF service binding (Option A):** Instead of managing credentials manually, you can bind the `uas` service instance directly to the app. The app reads credentials automatically from `VCAP_SERVICES` — no `UAS_CLIENT_ID` / `UAS_CLIENT_SECRET` / `UAS_TOKEN_URL` env vars needed. See [Step 2](#2-configure-the-manifest) for how to add it to `manifest.yml`.
+
 
 The Resource Consumption APIs of the **SAP Usage Data Management service** are protected with OAuth 2.0 Client Credentials. Follow the official SAP guide: [Configuration for Using the Resource Consumption APIs](https://help.sap.com/docs/btp/sap-business-technology-platform/configuration-for-using-resource-consumption-apis-in-sap-api-business-hub)
 
@@ -178,20 +182,41 @@ A successful response contains an `access_token` with scope `<xsappname>.Reporti
 
 ### 2. Configure the manifest
 
-Edit `manifest.yml` and fill in the non-sensitive values:
+Edit `manifest.yml` and fill in the non-sensitive values.
 
+**Option A — CF service binding for UAS (recommended):**
 ```yaml
-SUBACCOUNT_ID: "your-subaccount-uuid"
-SPENDING_LIMIT: "50"
-NOTIFICATION_EMAIL: "your-team@company.com"
-UAS_CLIENT_ID: "sb-..."
-UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
-# UAS_REPORTING_BASE_URL is auto-derived from UAS_TOKEN_URL – only set if needed
-SMTP_HOST: "smtp.office365.com"
-SMTP_USER: "monitor@company.com"
+# In the services: section, add your uas instance name:
+services:
+  - uas-reporting          # your uas service instance name
+  - ai-core-monitor-ans
+
+# No UAS_CLIENT_ID / UAS_CLIENT_SECRET / UAS_TOKEN_URL needed in env:
+env:
+  SUBACCOUNT_ID: "your-subaccount-uuid"
+  SPENDING_LIMIT: "50"
+```
+
+**Option B — Explicit credentials:**
+```yaml
+env:
+  SUBACCOUNT_ID: "your-subaccount-uuid"
+  SPENDING_LIMIT: "50"
+  NOTIFICATION_EMAIL: "your-team@company.com"   # required for SMTP
+  UAS_CLIENT_ID: "sb-..."
+  UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
+  # UAS_REPORTING_BASE_URL is auto-derived from UAS_TOKEN_URL – only set if needed
+
+  # ── SMTP (only required if ENABLE_SMTP=true) ──
+  SMTP_HOST: "smtp.office365.com"
+  SMTP_PORT: "587"
+  SMTP_USER: "monitor@company.com"
+  SMTP_USE_TLS: "true"
+  # SMTP_FROM: "monitor@company.com"  # only if your server requires a specific sender address
 ```
 
 > **Never put secrets in `manifest.yml`** — set them via `cf set-env` after the first deployment (see Step 5).
+> SMTP secret: `SMTP_PASSWORD`. UAS secret (Option B only): `UAS_CLIENT_SECRET`.
 
 ### 3. (Optional) Set up SAP Alert Notification Service
 
@@ -334,39 +359,40 @@ cf push
 `cf set-env` requires the app to exist, so run these after the first `cf push`:
 
 ```bash
-cf set-env ai-core-monitor UAS_CLIENT_SECRET "your-uas-client-secret"
-cf set-env ai-core-monitor SMTP_PASSWORD "your-smtp-password"
+# Only required if using Option B (explicit UAS credentials, not CF service binding):
+cf set-env ai-core-monitor UAS_CLIENT_SECRET 'your-uas-client-secret'
+
+# Only required if ENABLE_SMTP=true:
+cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
+
 cf restage ai-core-monitor
 ```
-
-> If you enabled ANS after the initial deployment, also run:
-> ```bash
-> cf set-env ai-core-monitor ENABLE_ANS true
-> cf restage ai-core-monitor
-> ```
 
 ### 6. Verify
 
 ```bash
-# Check app is running
+# Check app is running – the output shows the assigned random route
 cf app ai-core-monitor
+
+# Get just the URL
+APP_URL="https://$(cf app ai-core-monitor | grep -E '^routes:' | awk '{print $2}')"
 
 # View logs
 cf logs ai-core-monitor --recent
 
 # Check health endpoint
-curl https://ai-core-monitor.<your-cf-domain>/health
+curl "$APP_URL/health"
 
 # View last monitoring result
-curl https://ai-core-monitor.<your-cf-domain>/status
+curl "$APP_URL/status"
 
 # Manually trigger a check (dry run – no emails sent)
-curl -X POST https://ai-core-monitor.<your-cf-domain>/trigger \
+curl -X POST "$APP_URL/trigger" \
   -H "Content-Type: application/json" \
   -d '{"dry_run": true}'
 
 # Manually trigger a real check (sends notifications if thresholds are met)
-curl -X POST https://ai-core-monitor.<your-cf-domain>/trigger
+curl -X POST "$APP_URL/trigger"
 ```
 
 ---

@@ -387,12 +387,9 @@ def _get_ans_token(creds: Dict) -> str:
         return _ans_token_cache["access_token"]
 
     resp = requests.post(
-        creds["token_url"] + "/oauth/token",
-        data={
-            "grant_type": "client_credentials",
-            "client_id": creds["client_id"],
-            "client_secret": creds["client_secret"],
-        },
+        creds["token_url"],  # already includes /oauth/token from VCAP_SERVICES oauth_url
+        auth=(creds["client_id"], creds["client_secret"]),  # SAP XSUAA requires Basic Auth
+        data={"grant_type": "client_credentials"},
         timeout=30,
     )
     resp.raise_for_status()

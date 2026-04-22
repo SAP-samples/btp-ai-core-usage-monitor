@@ -4,6 +4,7 @@ applications:
     memory: 256M
     disk_quota: 512M
     instances: 1
+    random-route: true
     buildpacks:
       - python_buildpack
     command: gunicorn --workers 1 --threads 4 --timeout 120 --bind 0.0.0.0:$PORT server:app
@@ -27,12 +28,16 @@ applications:
       CHECK_TIME_UTC: "07:00" # Time of day (UTC) to run the daily check  (HH:MM format)
 
       # ── UAS Reporting API credentials ───────────────────────────────────────
-      # Obtain from the Usage Data Management service key in BTP cockpit
-      # Set UAS_CLIENT_SECRET via: cf set-env ai-core-monitor UAS_CLIENT_SECRET "..."
+      # Option A (recommended): bind the 'uas' service instance below in `services:`
+      #   → credentials are read automatically from VCAP_SERVICES, no env vars needed.
+      #   UAS_SERVICE_NAME is optional – only needed if multiple 'uas' instances are bound.
+      # UAS_SERVICE_NAME: "uas-reporting"
       #
-      # UAS_REPORTING_BASE_URL is optional – it is derived automatically from
-      # UAS_TOKEN_URL (region is extracted from the token URL hostname).
-      # Set it explicitly only if auto-detection does not work:
+      # Option B: provide credentials explicitly (set secret via cf set-env)
+      #   cf set-env ai-core-monitor UAS_CLIENT_SECRET '...'
+      # UAS_CLIENT_ID: "sb-..."
+      # UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
+      # UAS_REPORTING_BASE_URL is optional – derived automatically from UAS_TOKEN_URL
       # UAS_REPORTING_BASE_URL: "https://uas-reporting.cfapps.<region>.hana.ondemand.com"
       UAS_CLIENT_ID: "your-uas-client-id"
       UAS_TOKEN_URL: "https://<global-account-id>.authentication.<region>.hana.ondemand.com/oauth/token"
@@ -53,6 +58,8 @@ applications:
       ENABLE_ANS: "false"
       # ANS_SERVICE_NAME: "ai-core-monitor-ans"
 
-    # Bind the SAP Alert Notification Service instance here (optional)
+    # Bind CF service instances here.
+    # Option A for UAS: add your 'uas' service instance name to avoid managing credentials manually.
     # services:
     #   - ai-core-monitor-ans
+    #   - uas-reporting   # uncomment to use CF service binding for UAS credentials

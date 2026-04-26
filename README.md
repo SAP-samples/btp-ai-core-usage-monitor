@@ -2,8 +2,6 @@
 
 A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors daily AI Core capacity unit consumption. When consumption approaches a configured monthly spending limit, it sends notifications via **SMTP email** or **SAP Alert Notification Service (ANS)**.
 
----
-
 ## How It Works
 
 ```
@@ -37,8 +35,6 @@ A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors da
 
 ![Email notification example](email_example.png)
 
----
-
 ## Project Structure
 
 ```
@@ -56,8 +52,6 @@ ai-core-monitor/
 ├── .env.example       # Template for local development
 └── README.md
 ```
-
----
 
 ## Configuration Reference
 
@@ -83,8 +77,6 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | `ENABLE_ANS` | | `false` | Enable SAP Alert Notification Service |
 | `ANS_SERVICE_NAME` | | `ai-core-monitor-ans` | CF service instance name to use. When only one ANS instance is bound, it is found automatically by service label — this variable is only needed if multiple ANS instances are bound and you need to select a specific one |
 
----
-
 ## Prerequisites
 
 1. **SAP BTP subaccount** with a **Cloud Foundry environment** enabled
@@ -98,7 +90,6 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
    - **SMTP server** (e.g. Office 365, Gmail, SendGrid) — set `ENABLE_SMTP=true` (default)
    - **SAP Alert Notification Service** instance — set `ENABLE_ANS=true`
 
----
 
 ## Step-by-Step Deployment
 
@@ -159,8 +150,6 @@ Set the following environment variables in `manifest.yml` (BTP) or `.env` (local
 
 Choose **one** notification channel:
 
----
-
 **Option A — SMTP email (default)**
 
 The HTML email uses SAP BTP styling (`'72 Brand'` font, SAP colour palette) and includes:
@@ -193,8 +182,6 @@ Set the SMTP password after `cf push` (see Step 5):
 ```bash
 cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
 ```
-
----
 
 **Option B — SAP Alert Notification Service**
 
@@ -422,8 +409,6 @@ curl -X POST "$APP_URL/trigger" \
 curl -X POST "$APP_URL/trigger" -H "Authorization: Bearer $TOKEN"
 ```
 
----
-
 ## API Endpoints
 
 | Method | Path | Protected | Description |
@@ -471,8 +456,6 @@ When `dry_run=true`, usage is fetched and the alert level is computed, but **no 
 }
 ```
 
----
-
 ## Security
 
 The app uses **SAP XSUAA** (OAuth2 JWT) to protect the `/status`, `/config`, and `/trigger` endpoints.
@@ -491,8 +474,6 @@ TOKEN=$(curl -s -X POST \
 
 curl -H "Authorization: Bearer $TOKEN" "$APP_URL/status"
 ```
-
----
 
 ## Local Development
 
@@ -517,8 +498,6 @@ curl http://localhost:8080/health
 curl -X POST http://localhost:8080/trigger -H "Content-Type: application/json" -d '{"dry_run": true}'
 ```
 
----
-
 ## Troubleshooting
 
 | Symptom | Likely cause | Fix |
@@ -531,3 +510,21 @@ curl -X POST http://localhost:8080/trigger -H "Content-Type: application/json" -
 | Emails not arriving | SMTP misconfiguration | Check `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` |
 | ANS events not routing | No ANS subscription configured | Create a subscription in the ANS dashboard for event type `AI_CORE_CAPACITY_MONITOR` |
 | Scheduler fires twice | Multiple CF instances | Keep `instances: 1` in `manifest.yml` |
+
+## Known Issues
+
+<!-- You may simply state "No known issues. -->
+
+## How to obtain support
+
+[Create an issue](https://github.com/SAP-samples/btp-ai-core-usage-monitor/issues) in this repository if you find a bug or have questions about the content.
+
+For additional support, [ask a question in SAP Community](https://answers.sap.com/questions/ask.html).
+
+## Contributing
+
+If you wish to contribute code, offer fixes or improvements, please send a pull request. Due to legal reasons, contributors will be asked to accept a DCO when they create the first pull request to this project. This happens in an automated fashion during the submission process. SAP uses [the standard DCO text of the Linux Foundation](https://developercertificate.org/).
+
+## License
+
+Copyright (c) 2026 SAP SE or an SAP affiliate company. All rights reserved. This project is licensed under the Apache Software License, version 2.0 except as noted otherwise in the [LICENSE](LICENSE) file.

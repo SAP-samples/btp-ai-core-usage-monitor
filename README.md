@@ -37,16 +37,38 @@ A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors da
 
 ---
 
-## Notification Email Preview
+## Notifications
 
-The HTML email includes:
-- 🟢/🟡/🔴 colour-coded alert banner
+### SMTP Email
+
+The HTML email uses SAP BTP styling (`'72 Brand'` font, SAP colour palette) and includes:
+- 🟢/🟡/🔴 colour-coded alert banner with left-border accent
+- SAP BTP logo header
 - Key metrics: CU used, monthly limit, projected month-end
-- Visual progress bar
+- Visual progress bar (Outlook-compatible, table-based)
 - Per-model consumption breakdown table
 - Configured threshold reference
+- SAP footer
 
 ![Email notification example](email_example.png)
+
+### SAP Alert Notification Service (ANS)
+
+When `ENABLE_ANS=true`, the agent posts a structured event to the ANS Producer API (`/cf/producer/v1/resource-events`). ANS can then route the event to email, Slack, MS Teams, PagerDuty, or any other configured action.
+
+**Event payload fields:**
+
+| Field | Value |
+|---|---|
+| `eventType` | `AI_CORE_CAPACITY_MONITOR` |
+| `severity` | `INFO` / `WARNING` / `ERROR` |
+| `category` | `NOTIFICATION` / `ALERT` |
+| `subject` | `AI Core Capacity <label>: <pct>% used` (max 36 chars) |
+| `body` | Subaccount, CU consumed, % of limit, projected month-end, top consumer (max ~280 chars) |
+| `resource.resourceType` | `SAP BTP Subaccount` |
+| `tags` | `subaccountId`, `percentageUsed`, `spendingLimit`, `projectedCu`, `periodStart/End`, thresholds |
+
+All field values are well within ANS character limits (`subject` ≤ 255, `body` ≤ 2000, tag values ≤ 255).
 
 ---
 
@@ -284,54 +306,60 @@ In the ANS dashboard (BTP cockpit → your ANS service instance → **Manage**):
 
 ```html
 <!DOCTYPE html><html><head><meta charset="UTF-8"></head>
-<body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,sans-serif;">
+<body style="margin:0;padding:0;background:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px 0;"><tr><td align="center">
-<table width="580" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:8px;overflow:hidden;">
+<table width="600" cellpadding="0" cellspacing="0" style="background:#fff;">
 
-<tr><td style="background:#0070f3;padding:20px 24px;">
-  <b style="color:#fff;font-size:18px;">🤖 AI Core Consumption Monitor</b>
-  <p style="margin:4px 0 0;color:#cce4ff;font-size:12px;">SAP BTP · {tags.subaccountName}</p>
+<tr><td style="padding:20px 40px;background:#fff;">
+  <img src="https://www.sap.com/dam/application/shared/logos/sap-group/sap-btp-blu.png" alt="SAP BTP" height="28" style="height:28px;width:auto;vertical-align:top;">
 </td></tr>
 
-<tr><td style="padding:16px 24px 0;">
-  <div style="background:#f8f9fa;border:1px solid #dee2e6;border-radius:6px;padding:12px 16px;">
-    <b style="color:#495057;font-size:15px;">{tags.alertEmoji} {tags.alertLabel}</b>
-    <p style="margin:4px 0 0;color:#495057;font-size:13px;">Consumption is at <b>{tags.percentageUsed}%</b> of the monthly limit.</p>
-  </div>
-</td></tr>
-
-<tr><td style="padding:16px 24px 0;">
+<tr><td style="padding:0 40px;">
   <table width="100%" cellpadding="0" cellspacing="0"><tr>
-    <td width="32%" style="text-align:center;padding:10px;background:#f8f9fa;border-radius:6px;">
-      <div style="font-size:20px;font-weight:700;color:#0070f3;">{tags.totalCapacityUnits}</div>
-      <div style="font-size:11px;color:#6c757d;">CU Used</div>
-    </td>
-    <td width="4%"></td>
-    <td width="32%" style="text-align:center;padding:10px;background:#f8f9fa;border-radius:6px;">
-      <div style="font-size:20px;font-weight:700;color:#495057;">{tags.spendingLimit}</div>
-      <div style="font-size:11px;color:#6c757d;">Monthly Limit</div>
-    </td>
-    <td width="4%"></td>
-    <td width="32%" style="text-align:center;padding:10px;background:#f8f9fa;border-radius:6px;">
-      <div style="font-size:20px;font-weight:700;color:#6f42c1;">{tags.projectedCu}</div>
-      <div style="font-size:11px;color:#6c757d;">Projected</div>
+    <td style="background:{tags.alertBg};border-left:4px solid {tags.alertBorder};padding:14px 16px;border-radius:4px;">
+      <b style="color:{tags.alertColor};font-size:15px;">{tags.alertEmoji} {tags.alertLabel} — AI Core Capacity Usage</b>
+      <p style="margin:5px 0 0;color:{tags.alertColor};font-size:13px;">Consumption is at <b>{tags.percentageUsed}%</b> of your monthly spending limit.</p>
     </td>
   </tr></table>
 </td></tr>
 
-<tr><td style="padding:12px 24px 0;font-size:12px;color:#6c757d;">
-  📅 {tags.periodStart} → {tags.periodEnd} &nbsp;|&nbsp; Day {tags.daysElapsed}/{tags.daysInMonth}
-  &nbsp;|&nbsp; ⚠️ {tags.warningThreshold}% / 🚨 {tags.alertThreshold}%
+<tr><td style="padding:16px 40px 0;">
+  <b style="font-size:18px;color:#223548;">{tags.subaccountName}</b>
+  <p style="margin:3px 0 0;font-size:12px;color:#354a5f;">Subaccount: {tags.subaccountId} &nbsp;·&nbsp; {tags.periodStart} → {tags.periodEnd}</p>
 </td></tr>
 
-<tr><td style="padding:16px 24px;">
-  <div style="background:#f8f9fa;border-radius:6px;padding:10px 14px;font-size:12px;color:#495057;">
-    <pre style="margin:0;white-space:pre-wrap;font-family:Arial,sans-serif;">{body}</pre>
+<tr><td style="padding:14px 40px 0;">
+  <table width="100%" cellpadding="0" cellspacing="0"><tr>
+    <td width="32%" style="text-align:center;padding:12px 8px;background:#f4f6f9;border-radius:6px;">
+      <div style="font-size:20px;font-weight:700;color:#0057d2;">{tags.totalCapacityUnits}</div>
+      <div style="font-size:11px;color:#354a5f;margin-top:3px;">CU Used</div>
+    </td>
+    <td width="2%"></td>
+    <td width="32%" style="text-align:center;padding:12px 8px;background:#f4f6f9;border-radius:6px;">
+      <div style="font-size:20px;font-weight:700;color:#223548;">{tags.spendingLimit}</div>
+      <div style="font-size:11px;color:#354a5f;margin-top:3px;">Monthly Limit</div>
+    </td>
+    <td width="2%"></td>
+    <td width="32%" style="text-align:center;padding:12px 8px;background:#f4f6f9;border-radius:6px;">
+      <div style="font-size:20px;font-weight:700;color:{tags.alertColor};">{tags.projectedCu}</div>
+      <div style="font-size:11px;color:#354a5f;margin-top:3px;">Projected</div>
+    </td>
+  </tr></table>
+</td></tr>
+
+<tr><td style="padding:12px 40px 0;font-size:12px;color:#354a5f;">
+  Day {tags.daysElapsed} of {tags.daysInMonth} &nbsp;|&nbsp; ⚠️ warn at {tags.warningThreshold}% &nbsp;|&nbsp; 🚨 alert at {tags.alertThreshold}%
+</td></tr>
+
+<tr><td style="padding:14px 40px;">
+  <div style="background:#f4f6f9;border-radius:4px;padding:10px 14px;font-size:12px;color:#354a5f;">
+    <pre style="margin:0;white-space:pre-wrap;font-family:Arial,Helvetica,sans-serif;">{body}</pre>
   </div>
 </td></tr>
 
-<tr><td style="padding:12px 24px;border-top:1px solid #dee2e6;font-size:11px;color:#adb5bd;text-align:center;">
-  AI Core Consumption Monitor · SAP BTP · {tags.subaccountName}<br>{ans-disclaimer}
+<tr><td style="background:#EAECEE;padding:16px 40px;">
+  <img src="https://www.sap.com/dam/application/shared/logos/sap-group/sap-tagline-straight-r-grad-blu.png" alt="SAP" height="20" style="height:20px;width:auto;vertical-align:top;display:block;margin-bottom:8px;">
+  <p style="margin:0;font-size:11px;color:#8396a8;">{ans-disclaimer}</p>
 </td></tr>
 
 </table></td></tr></table>

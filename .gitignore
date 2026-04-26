@@ -31,3 +31,8 @@ ENV/
 
 # CF deployment artifacts
 *.zip
+
+# Local preview / sample files (generated during development)
+email_preview.html
+ans_email_preview.html
+ans_payload_sample.json

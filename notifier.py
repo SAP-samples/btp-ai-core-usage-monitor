@@ -32,31 +32,34 @@ LEVEL_ALERT = "ALERT"
 
 _LEVEL_META = {
     LEVEL_INFO: {
-        "color": "#28a745",
+        "color": "#155724",
         "bg": "#d4edda",
-        "border": "#c3e6cb",
+        "border_left": "#28a745",
         "emoji": "✅",
         "label": "Daily Update",
         "ans_severity": "INFO",
         "ans_category": "NOTIFICATION",
+        "bar_color": "#28a745",
     },
     LEVEL_WARNING: {
-        "color": "#856404",
+        "color": "#6a3b00",
         "bg": "#fff3cd",
-        "border": "#ffeeba",
+        "border_left": "#e9730c",
         "emoji": "⚠️",
         "label": "Warning",
         "ans_severity": "WARNING",
         "ans_category": "ALERT",
+        "bar_color": "#e9730c",
     },
     LEVEL_ALERT: {
-        "color": "#721c24",
-        "bg": "#f8d7da",
-        "border": "#f5c6cb",
+        "color": "#6a0000",
+        "bg": "#ffd6d6",
+        "border_left": "#bb0000",
         "emoji": "🚨",
         "label": "Alert",
         "ans_severity": "ERROR",
         "ans_category": "ALERT",
+        "bar_color": "#bb0000",
     },
 }
 
@@ -67,6 +70,7 @@ _LEVEL_META = {
 def _build_html_email(usage: Dict, level: str) -> str:
     """
     Build a rich HTML email body for the given usage data and alert level.
+    Uses SAP '72 Brand' typography and SAP BTP colour palette.
     """
     meta = _LEVEL_META[level]
     total_cu = usage["total_cu"]
@@ -82,174 +86,272 @@ def _build_html_email(usage: Dict, level: str) -> str:
     fetch_date = usage.get("fetch_date", "")
     by_application = usage.get("by_application", {})
 
-    # Progress bar colour
-    if pct >= cfg.alert_threshold_percent:
-        bar_color = "#dc3545"
-    elif pct >= cfg.warning_threshold_percent:
-        bar_color = "#ffc107"
-    else:
-        bar_color = "#28a745"
-
+    bar_color = meta["bar_color"]
     bar_width = min(pct, 100)
 
-    # Application breakdown rows
+    # Application breakdown rows (alternating row background)
     app_rows = ""
-    for app, cu in by_application.items():
+    for i, (app, cu) in enumerate(by_application.items()):
         app_pct = (cu / total_cu * 100) if total_cu > 0 else 0.0
+        row_bg = " style=\"background-color:#f4f6f9;\"" if i % 2 == 1 else ""
         app_rows += f"""
-        <tr>
-          <td style="padding:8px 12px;border-bottom:1px solid #dee2e6;">{app}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #dee2e6;text-align:right;">{cu:.6f}</td>
-          <td style="padding:8px 12px;border-bottom:1px solid #dee2e6;text-align:right;">{app_pct:.1f}%</td>
-        </tr>"""
+              <tr{row_bg}>
+                <td style="padding:9px 14px;border-bottom:1px solid #d5dadd;font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#223548;">{app}</td>
+                <td style="padding:9px 14px;border-bottom:1px solid #d5dadd;text-align:right;font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#223548;">{cu:.6f}</td>
+                <td style="padding:9px 14px;border-bottom:1px solid #d5dadd;text-align:right;font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#223548;">{app_pct:.1f}%</td>
+              </tr>"""
 
-    html = f"""<!DOCTYPE html>
-<html lang="en">
+    html = f"""<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="x-apple-disable-message-reformatting">
   <title>AI Core Consumption Monitor</title>
+  <style type="text/css">
+    @font-face {{
+      font-family: '72 Brand';
+      font-weight: 400;
+      src: url("https://client-data.knak.io/production/company_data/642c6c7705cf9/custom-fonts/65d8f652ae55d/72-Regular-full.woff2");
+    }}
+    @font-face {{
+      font-family: '72 Brand';
+      font-weight: 700;
+      src: url("https://client-data.knak.io/production/company_data/642c6c7705cf9/custom-fonts/65d8f652ae55d/72-Bold-full.woff2");
+    }}
+    a {{ color: #0057d2; text-decoration: underline; }}
+    img {{ border: 0; height: auto; line-height: 100%; outline: 0; text-decoration: none; }}
+    p {{ margin: 0; padding: 0; }}
+  </style>
 </head>
-<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:Arial,Helvetica,sans-serif;">
-  <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f4f6f9;padding:30px 0;">
-    <tr>
-      <td align="center">
-        <table width="620" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+<body style="margin:0;padding:0;background-color:#f4f6f9;font-family:'72 Brand',Arial,Helvetica,sans-serif;">
+<table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#f4f6f9;">
+  <tr>
+    <td align="center" style="padding:24px 0;">
+      <table border="0" cellpadding="0" cellspacing="0" style="max-width:640px;width:100%;">
+        <tr>
+          <td bgcolor="#ffffff" style="background-color:#ffffff;">
 
-          <!-- Header -->
-          <tr>
-            <td style="background-color:#0070f3;padding:24px 32px;">
-              <h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:600;">
-                🤖 AI Core Consumption Monitor
-              </h1>
-              <p style="margin:4px 0 0;color:#cce4ff;font-size:13px;">
-                SAP BTP · {subaccount_name}
-              </p>
-            </td>
-          </tr>
+            <!-- SAP BTP Logo -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#ffffff">
+              <tr>
+                <td style="padding:24px 48px;background-color:#ffffff;">
+                  <img src="https://www.sap.com/dam/application/shared/logos/sap-group/sap-btp-blu.png"
+                       alt="SAP BTP" height="32" style="height:32px;width:auto;vertical-align:top;">
+                </td>
+              </tr>
+            </table>
 
-          <!-- Alert banner -->
-          <tr>
-            <td style="padding:0 32px;padding-top:24px;">
-              <div style="background:{meta['bg']};border:1px solid {meta['border']};border-radius:6px;padding:14px 18px;">
-                <span style="color:{meta['color']};font-size:16px;font-weight:700;">
-                  {meta['emoji']} {meta['label']}
-                </span>
-                <p style="margin:6px 0 0;color:{meta['color']};font-size:14px;">
-                  AI Core capacity unit consumption is at
-                  <strong>{pct:.1f}%</strong> of your monthly spending limit.
-                </p>
-              </div>
-            </td>
-          </tr>
+            <!-- Alert banner -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="padding:0 48px;">
+                  <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td style="background-color:{meta['bg']};border-left:4px solid {meta['border_left']};padding:16px 20px;border-radius:4px;">
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:16px;font-weight:700;color:{meta['color']};">
+                          {meta['emoji']} {meta['label']} — AI Core Capacity Usage
+                        </div>
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:14px;color:{meta['color']};margin-top:6px;line-height:1.5em;">
+                          AI Core capacity unit consumption is at <strong>{pct:.1f}%</strong> of your monthly spending limit.
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
 
-          <!-- Key metrics -->
-          <tr>
-            <td style="padding:24px 32px 0;">
-              <table width="100%" cellpadding="0" cellspacing="0">
-                <tr>
-                  <td width="33%" style="text-align:center;padding:12px;background:#f8f9fa;border-radius:6px;margin-right:8px;">
-                    <div style="font-size:22px;font-weight:700;color:#0070f3;">{total_cu:.4f}</div>
-                    <div style="font-size:12px;color:#6c757d;margin-top:4px;">Capacity Units Used</div>
-                  </td>
-                  <td width="4%"></td>
-                  <td width="33%" style="text-align:center;padding:12px;background:#f8f9fa;border-radius:6px;">
-                    <div style="font-size:22px;font-weight:700;color:#495057;">{spending_limit:.2f}</div>
-                    <div style="font-size:12px;color:#6c757d;margin-top:4px;">Monthly Limit</div>
-                  </td>
-                  <td width="4%"></td>
-                  <td width="33%" style="text-align:center;padding:12px;background:#f8f9fa;border-radius:6px;">
-                    <div style="font-size:22px;font-weight:700;color:#6f42c1;">{projected_cu:.4f}</div>
-                    <div style="font-size:12px;color:#6c757d;margin-top:4px;">Projected Month-End</div>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+            <!-- Spacer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td height="24"><div style="height:24px;line-height:24px;"> </div></td></tr>
+            </table>
 
-          <!-- Progress bar -->
-          <tr>
-            <td style="padding:20px 32px 0;">
-              <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
-                <span style="font-size:13px;color:#495057;font-weight:600;">Monthly Usage Progress</span>
-                <span style="font-size:13px;color:#495057;font-weight:600;">{pct:.1f}% of {spending_limit:.2f} CU</span>
-              </div>
-              <div style="background:#e9ecef;border-radius:4px;height:14px;overflow:hidden;">
-                <div style="background:{bar_color};width:{bar_width:.1f}%;height:100%;border-radius:4px;"></div>
-              </div>
-              <div style="display:flex;justify-content:space-between;margin-top:6px;">
-                <span style="font-size:11px;color:#6c757d;">Day {days_elapsed} of {days_in_month}</span>
-                <span style="font-size:11px;color:#6c757d;">Projected: {projected_pct:.1f}% ({projected_cu:.4f} CU)</span>
-              </div>
-            </td>
-          </tr>
+            <!-- Subaccount title -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="padding:0 48px;">
+                  <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#223548;line-height:1.2em;">
+                    {subaccount_name}
+                  </div>
+                  <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#354a5f;margin-top:4px;">
+                    Subaccount ID: <code style="background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;">{cfg.subaccount_id}</code>
+                    &nbsp;&#183;&nbsp; &#128197; {period_start} &#8594; {period_end}
+                  </div>
+                </td>
+              </tr>
+            </table>
 
-          <!-- Period info -->
-          <tr>
-            <td style="padding:16px 32px 0;">
-              <p style="margin:0;font-size:13px;color:#6c757d;">
-                📅 Reporting period: <strong>{period_start}</strong> → <strong>{period_end}</strong>
-                &nbsp;|&nbsp; Subaccount ID: <code style="background:#f8f9fa;padding:2px 5px;border-radius:3px;font-size:12px;">{cfg.subaccount_id}</code>
-              </p>
-            </td>
-          </tr>
+            <!-- Spacer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td height="24"><div style="height:24px;line-height:24px;"> </div></td></tr>
+            </table>
 
-          <!-- Application breakdown -->
-          <tr>
-            <td style="padding:24px 32px 0;">
-              <h3 style="margin:0 0 12px;font-size:15px;color:#343a40;">
-                📊 Consumption by Application
-              </h3>
-              <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #dee2e6;border-radius:6px;overflow:hidden;font-size:13px;">
-                <thead>
-                  <tr style="background:#f8f9fa;">
-                    <th style="padding:10px 12px;text-align:left;color:#495057;font-weight:600;border-bottom:2px solid #dee2e6;">Application / Model</th>
-                    <th style="padding:10px 12px;text-align:right;color:#495057;font-weight:600;border-bottom:2px solid #dee2e6;">Capacity Units</th>
-                    <th style="padding:10px 12px;text-align:right;color:#495057;font-weight:600;border-bottom:2px solid #dee2e6;">Share</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {app_rows}
-                </tbody>
-                <tfoot>
-                  <tr style="background:#f8f9fa;">
-                    <td style="padding:10px 12px;font-weight:700;color:#343a40;">Total</td>
-                    <td style="padding:10px 12px;text-align:right;font-weight:700;color:#343a40;">{total_cu:.6f}</td>
-                    <td style="padding:10px 12px;text-align:right;font-weight:700;color:#343a40;">100%</td>
-                  </tr>
-                </tfoot>
-              </table>
-            </td>
-          </tr>
+            <!-- Key metrics (3 cards) -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="padding:0 48px;">
+                  <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td width="32%" style="background-color:#f4f6f9;border-radius:6px;padding:16px 12px;text-align:center;vertical-align:top;">
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#0057d2;">{total_cu:.4f}</div>
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;color:#354a5f;margin-top:4px;">Capacity Units Used</div>
+                      </td>
+                      <td width="2%"></td>
+                      <td width="32%" style="background-color:#f4f6f9;border-radius:6px;padding:16px 12px;text-align:center;vertical-align:top;">
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:#223548;">{spending_limit:.2f}</div>
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;color:#354a5f;margin-top:4px;">Monthly Limit (CU)</div>
+                      </td>
+                      <td width="2%"></td>
+                      <td width="32%" style="background-color:#f4f6f9;border-radius:6px;padding:16px 12px;text-align:center;vertical-align:top;">
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:24px;font-weight:700;color:{meta['color']};">{projected_cu:.4f}</div>
+                        <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;color:#354a5f;margin-top:4px;">Projected Month-End</div>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
 
-          <!-- Thresholds reference -->
-          <tr>
-            <td style="padding:20px 32px 0;">
-              <div style="background:#f8f9fa;border-radius:6px;padding:12px 16px;font-size:12px;color:#6c757d;">
-                <strong>Configured thresholds:</strong>
-                &nbsp;⚠️ Warning at {cfg.warning_threshold_percent:.0f}%
-                &nbsp;|&nbsp;
-                🚨 Alert at {cfg.alert_threshold_percent:.0f}%
-                &nbsp;|&nbsp;
-                Monthly limit: {spending_limit:.2f} CU
-              </div>
-            </td>
-          </tr>
+            <!-- Spacer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td height="24"><div style="height:24px;line-height:24px;"> </div></td></tr>
+            </table>
 
-          <!-- Footer -->
-          <tr>
-            <td style="padding:24px 32px;border-top:1px solid #dee2e6;margin-top:24px;">
-              <p style="margin:0;font-size:12px;color:#adb5bd;text-align:center;">
-                This report was generated automatically by the AI Core Consumption Monitor on {fetch_date}.<br>
-                Running on SAP BTP Cloud Foundry · Subaccount: {subaccount_name}
-              </p>
-            </td>
-          </tr>
+            <!-- Progress bar (table-based for email client compatibility) -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="padding:0 48px;">
+                  <table border="0" cellpadding="0" cellspacing="0" width="100%">
+                    <tr>
+                      <td style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#223548;padding-bottom:6px;">
+                        Monthly Usage Progress
+                      </td>
+                      <td align="right" style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;color:#223548;padding-bottom:6px;">
+                        {pct:.1f}% of {spending_limit:.2f} CU
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colspan="2">
+                        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#d5dadd;border-radius:4px;height:14px;">
+                          <tr>
+                            <td width="{bar_width:.1f}%" style="background-color:{bar_color};border-radius:4px;height:14px;line-height:14px;font-size:1px;"> </td>
+                            <td></td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:11px;color:#354a5f;padding-top:6px;">
+                        Day {days_elapsed} of {days_in_month}
+                      </td>
+                      <td align="right" style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:11px;color:#354a5f;padding-top:6px;">
+                        Projected: {projected_pct:.1f}% ({projected_cu:.4f} CU)
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
 
-        </table>
-      </td>
-    </tr>
-  </table>
+            <!-- Spacer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td height="32"><div style="height:32px;line-height:32px;"> </div></td></tr>
+            </table>
+
+            <!-- Divider -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td style="padding:0 48px;"><div style="border-top:1px solid #d5dadd;"></div></td></tr>
+            </table>
+
+            <!-- Spacer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td height="24"><div style="height:24px;line-height:24px;"> </div></td></tr>
+            </table>
+
+            <!-- Consumption breakdown table -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="padding:0 48px;">
+                  <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:15px;font-weight:700;color:#223548;margin-bottom:12px;">
+                    &#128202; Consumption by Application
+                  </div>
+                  <table border="0" cellpadding="0" cellspacing="0" width="100%" style="border:1px solid #d5dadd;border-radius:6px;border-collapse:separate;border-spacing:0;font-size:13px;font-family:'72 Brand',Arial,Helvetica,sans-serif;">
+                    <thead>
+                      <tr style="background-color:#f4f6f9;">
+                        <th style="padding:10px 14px;text-align:left;color:#354a5f;font-weight:700;border-bottom:2px solid #d5dadd;">Application / Model</th>
+                        <th style="padding:10px 14px;text-align:right;color:#354a5f;font-weight:700;border-bottom:2px solid #d5dadd;">Capacity Units</th>
+                        <th style="padding:10px 14px;text-align:right;color:#354a5f;font-weight:700;border-bottom:2px solid #d5dadd;">Share</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {app_rows}
+                    </tbody>
+                    <tfoot>
+                      <tr style="background-color:#f4f6f9;">
+                        <td style="padding:10px 14px;font-weight:700;color:#223548;">Total</td>
+                        <td style="padding:10px 14px;text-align:right;font-weight:700;color:#223548;">{total_cu:.6f}</td>
+                        <td style="padding:10px 14px;text-align:right;font-weight:700;color:#223548;">100%</td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Spacer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td height="24"><div style="height:24px;line-height:24px;"> </div></td></tr>
+            </table>
+
+            <!-- Thresholds reference -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr>
+                <td style="padding:0 48px;">
+                  <div style="background-color:#f4f6f9;border-radius:4px;padding:12px 16px;font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;color:#354a5f;">
+                    <strong>Configured thresholds:</strong>
+                    &nbsp;&#9888;&#65039; Warning at {cfg.warning_threshold_percent:.0f}%
+                    &nbsp;|&nbsp;
+                    &#128680; Alert at {cfg.alert_threshold_percent:.0f}%
+                    &nbsp;|&nbsp;
+                    Monthly limit: {spending_limit:.2f} CU
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+            <!-- Spacer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%">
+              <tr><td height="40"><div style="height:40px;line-height:40px;"> </div></td></tr>
+            </table>
+
+            <!-- Footer -->
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" bgcolor="#EAECEE">
+              <tr><td bgcolor="#EAECEE" height="24"><div style="height:24px;line-height:24px;"> </div></td></tr>
+              <tr>
+                <td bgcolor="#EAECEE" style="padding:0 48px;">
+                  <img src="https://www.sap.com/dam/application/shared/logos/sap-group/sap-tagline-straight-r-grad-blu.png"
+                       alt="SAP | Bring out your best" height="24" style="height:24px;width:auto;vertical-align:top;">
+                </td>
+              </tr>
+              <tr><td bgcolor="#EAECEE" height="12"><div style="height:12px;line-height:12px;"> </div></td></tr>
+              <tr>
+                <td bgcolor="#EAECEE" style="padding:0 48px 24px;">
+                  <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5em;color:#354a5f;">
+                    This report was generated automatically by the AI Core Consumption Monitor on {fetch_date}.<br>
+                    Running on SAP BTP Cloud Foundry &#183; Subaccount: {subaccount_name}
+                  </div>
+                </td>
+              </tr>
+            </table>
+
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 </body>
 </html>"""
 
@@ -446,6 +548,10 @@ def send_ans_notification(usage: Dict, level: str) -> bool:
             "alertLevel": level,
             "alertLabel": meta["label"],
             "alertEmoji": meta["emoji"],
+            # Colour tokens for ANS HTML Payload Templates
+            "alertColor": meta["color"],
+            "alertBg": meta["bg"],
+            "alertBorder": meta["border_left"],
             "projectedCu": str(round(usage.get("projected_cu", 0.0), 6)),
             "daysElapsed": str(usage.get("days_elapsed", 0)),
             "daysInMonth": str(usage.get("days_in_month", 0)),

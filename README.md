@@ -35,40 +35,7 @@ A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors da
 
 **Metric tracked:** `serviceId=ai-core` + `measureId=capacity_units` — summed across all models (Claude, GPT, embedding models, etc.) for the current calendar month.
 
----
-
-## Notifications
-
-### SMTP Email
-
-The HTML email uses SAP BTP styling (`'72 Brand'` font, SAP colour palette) and includes:
-- 🟢/🟡/🔴 colour-coded alert banner with left-border accent
-- SAP BTP logo header
-- Key metrics: CU used, monthly limit, projected month-end
-- Visual progress bar (Outlook-compatible, table-based)
-- Per-model consumption breakdown table
-- Configured threshold reference
-- SAP footer
-
 ![Email notification example](email_example.png)
-
-### SAP Alert Notification Service (ANS)
-
-When `ENABLE_ANS=true`, the agent posts a structured event to the ANS Producer API (`/cf/producer/v1/resource-events`). ANS can then route the event to email, Slack, MS Teams, PagerDuty, or any other configured action.
-
-**Event payload fields:**
-
-| Field | Value |
-|---|---|
-| `eventType` | `AI_CORE_CAPACITY_MONITOR` |
-| `severity` | `INFO` / `WARNING` / `ERROR` |
-| `category` | `NOTIFICATION` / `ALERT` |
-| `subject` | `AI Core Capacity <label>: <pct>% used` (max 36 chars) |
-| `body` | Subaccount, CU consumed, % of limit, projected month-end, top consumer (max ~280 chars) |
-| `resource.resourceType` | `SAP BTP Subaccount` |
-| `tags` | `subaccountId`, `percentageUsed`, `spendingLimit`, `projectedCu`, `periodStart/End`, thresholds |
-
-All field values are well within ANS character limits (`subject` ≤ 255, `body` ≤ 2000, tag values ≤ 255).
 
 ---
 
@@ -196,6 +163,13 @@ Choose **one** notification channel:
 
 **Option A — SMTP email (default)**
 
+The HTML email uses SAP BTP styling (`'72 Brand'` font, SAP colour palette) and includes:
+- 🟢/🟡/🔴 colour-coded alert banner with left-border accent
+- Key metrics: CU used, monthly limit, projected month-end
+- Visual progress bar (Outlook-compatible, table-based)
+- Per-model consumption breakdown table
+- Configured threshold reference
+
 SMTP is enabled by default in `manifest.yml`. Fill in your SMTP server details:
 
 ```yaml
@@ -223,6 +197,22 @@ cf set-env ai-core-monitor SMTP_PASSWORD 'your-smtp-password'
 ---
 
 **Option B — SAP Alert Notification Service**
+
+When `ENABLE_ANS=true`, the agent posts a structured event to the ANS Producer API (`/cf/producer/v1/resource-events`). ANS routes the event to email, Slack, MS Teams, PagerDuty, or any other configured action.
+
+**Event payload fields:**
+
+| Field | Value |
+|---|---|
+| `eventType` | `AI_CORE_CAPACITY_MONITOR` |
+| `severity` | `INFO` / `WARNING` / `ERROR` |
+| `category` | `NOTIFICATION` / `ALERT` |
+| `subject` | `AI Core Capacity <label>: <pct>% used` (max 36 chars) |
+| `body` | Subaccount, CU consumed, % of limit, projected month-end, top consumer (max ~280 chars) |
+| `resource.resourceType` | `SAP BTP Subaccount` |
+| `tags` | `subaccountId`, `percentageUsed`, `spendingLimit`, `projectedCu`, `periodStart/End`, thresholds, colour tokens |
+
+All field values are well within ANS character limits (`subject` ≤ 255, `body` ≤ 2000, tag values ≤ 255).
 
 > See the official tutorial: [Getting Started with SAP Alert Notification Service for SAP BTP](https://developers.sap.com/tutorials/alert-notification-service..html)
 

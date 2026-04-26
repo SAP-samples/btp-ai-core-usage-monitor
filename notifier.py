@@ -88,6 +88,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
 
     bar_color = meta["bar_color"]
     bar_width = min(pct, 100)
+    bar_remaining = 100 - bar_width
 
     # Application breakdown rows (alternating row background)
     app_rows = ""
@@ -237,7 +238,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
                         <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color:#d5dadd;border-radius:4px;height:14px;">
                           <tr>
                             <td width="{bar_width:.1f}%" style="background-color:{bar_color};border-radius:4px;height:14px;line-height:14px;font-size:1px;"> </td>
-                            <td></td>
+                            <td width="{bar_remaining:.1f}%"></td>
                           </tr>
                         </table>
                       </td>

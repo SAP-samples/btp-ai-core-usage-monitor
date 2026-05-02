@@ -14,6 +14,7 @@ import logging
 import os
 import smtplib
 import time
+from datetime import date
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from typing import Dict, List, Optional
@@ -78,9 +79,20 @@ def _build_html_email(usage: Dict, level: str) -> str:
     pct = (total_cu / spending_limit * 100) if spending_limit > 0 else 0.0
     projected_cu = usage.get("projected_cu", 0.0)
     projected_pct = (projected_cu / spending_limit * 100) if spending_limit > 0 else 0.0
-    subaccount_name = usage.get("subaccount_name", cfg.subaccount_id)
-    period_start = usage.get("period_start", "")
-    period_end = usage.get("period_end", "")
+    subaccount_name = usage.get("subaccount_name") or cfg.subaccount_id
+    today = date.today()
+    month_start_iso = today.replace(day=1).isoformat()
+    fetch_date_iso = usage.get("fetch_date", today.isoformat())
+    period_start = usage.get("period_start") or month_start_iso
+    period_end = usage.get("period_end") or fetch_date_iso
+    # Format dates as "01 May 2026" — unambiguous across locales
+    def _fmt_date(iso: str) -> str:
+        try:
+            return date.fromisoformat(iso).strftime("%-d %b %Y")
+        except (ValueError, AttributeError):
+            return iso
+    period_start_fmt = _fmt_date(period_start)
+    period_end_fmt = _fmt_date(period_end)
     days_elapsed = usage.get("days_elapsed", 0)
     days_in_month = usage.get("days_in_month", 0)
     fetch_date = usage.get("fetch_date", "")
@@ -178,7 +190,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
                   </div>
                   <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#354a5f;margin-top:4px;">
                     Subaccount ID: <code style="background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;">{cfg.subaccount_id}</code>
-                    &nbsp;&#183;&nbsp; &#128197; {period_start} &#8594; {period_end}
+                    &nbsp;&#183;&nbsp; &#128197; {period_start_fmt} &#8594; {period_end_fmt}
                   </div>
                 </td>
               </tr>
@@ -341,7 +353,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
                 <td bgcolor="#EAECEE" style="padding:0 48px 24px;">
                   <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5em;color:#354a5f;">
                     This report was generated automatically by the AI Core Consumption Monitor on {fetch_date}.<br>
-                    Running on SAP BTP Cloud Foundry &#183; Subaccount: {subaccount_name}
+                    Running on SAP BTP Cloud Foundry &nbsp;&#183;&nbsp; Subaccount: {subaccount_name}
                   </div>
                 </td>
               </tr>
@@ -362,10 +374,11 @@ def _build_html_email(usage: Dict, level: str) -> str:
 def _build_subject(usage: Dict, level: str) -> str:
     meta = _LEVEL_META[level]
     pct = (usage["total_cu"] / cfg.spending_limit * 100) if cfg.spending_limit > 0 else 0
+    subaccount_name = usage.get("subaccount_name") or cfg.subaccount_id
     return (
         f"{meta['emoji']} [{meta['label']}] AI Core Capacity: "
         f"{pct:.1f}% used ({usage['total_cu']:.4f} / {cfg.spending_limit:.2f} CU) "
-        f"– {usage.get('subaccount_name', cfg.subaccount_id)}"
+        f"– {subaccount_name}"
     )
 
 
@@ -524,7 +537,20 @@ def send_ans_notification(usage: Dict, level: str) -> bool:
     meta = _LEVEL_META[level]
     total_cu = usage["total_cu"]
     pct = (total_cu / cfg.spending_limit * 100) if cfg.spending_limit > 0 else 0.0
-    subaccount_name = usage.get("subaccount_name", cfg.subaccount_id)
+    # Use 'or' fallback so empty strings also fall back to the subaccount ID
+    subaccount_name = usage.get("subaccount_name") or cfg.subaccount_id
+    _today = date.today()
+    period_start_iso = usage.get("period_start") or _today.replace(day=1).isoformat()
+    period_end_iso = usage.get("period_end") or usage.get("fetch_date", _today.isoformat())
+    # Human-readable format for tag values used in ANS email templates
+    def _fmt(iso: str) -> str:
+        try:
+            return date.fromisoformat(iso).strftime("%-d %b %Y")
+        except (ValueError, AttributeError):
+            return iso
+    period_start = _fmt(period_start_iso)
+    period_end = _fmt(period_end_iso)
+    top_consumer = next(iter(usage.get("by_application") or {}), "none")
 
     # Build the ANS event payload
     event = {
@@ -537,8 +563,8 @@ def send_ans_notification(usage: Dict, level: str) -> bool:
             f"Subaccount '{subaccount_name}' ({cfg.subaccount_id}) has consumed "
             f"{total_cu:.6f} capacity units ({pct:.1f}% of the {cfg.spending_limit:.2f} CU "
             f"monthly limit). Projected month-end: {usage.get('projected_cu', 0.0):.6f} CU.\n\n"
-            f"Reporting period: {usage.get('period_start', '')} → {usage.get('period_end', '')}.\n"
-            f"Top consumer: {next(iter(usage.get('by_application', {'N/A': 0})), 'N/A')}."
+            f"Reporting period: {period_start} → {period_end}.\n"
+            f"Top consumer: {top_consumer}."
         ),
         "tags": {
             "subaccountId": cfg.subaccount_id,
@@ -556,9 +582,11 @@ def send_ans_notification(usage: Dict, level: str) -> bool:
             "projectedCu": str(round(usage.get("projected_cu", 0.0), 6)),
             "daysElapsed": str(usage.get("days_elapsed", 0)),
             "daysInMonth": str(usage.get("days_in_month", 0)),
-            "periodStart": usage.get("period_start", ""),
-            "periodEnd": usage.get("period_end", ""),
-            "reportingPeriod": f"{usage.get('period_start', '')} to {usage.get('period_end', '')}",
+            "periodStart": period_start,
+            "periodEnd": period_end,
+            "reportingPeriod": f"{period_start} to {period_end}",
+            "periodStartIso": period_start_iso,
+            "periodEndIso": period_end_iso,
             "warningThreshold": str(cfg.warning_threshold_percent),
             "alertThreshold": str(cfg.alert_threshold_percent),
         },

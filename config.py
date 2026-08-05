@@ -46,6 +46,13 @@ class Config:
         default_factory=lambda: os.environ.get("SUBACCOUNT_ID", "")
     )
 
+    # ── AI Core Resource Group (optional) ────────────────────────────────────
+    # When set, only capacity units from this resource group (instanceId) are
+    # counted. Leave empty to aggregate all resource groups in the subaccount.
+    resource_group: str = field(
+        default_factory=lambda: os.environ.get("RESOURCE_GROUP", "")
+    )
+
     # ── Spending limit (capacity units / month) ───────────────────────────────
     spending_limit: float = field(
         default_factory=lambda: _float("SPENDING_LIMIT", 100.0)

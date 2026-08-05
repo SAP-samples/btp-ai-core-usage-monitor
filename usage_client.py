@@ -188,11 +188,13 @@ def aggregate_ai_core_capacity_units(records: List[dict]) -> Dict:
     Filtering criteria:
       - serviceId == "ai-core"
       - measureId == "capacity_units"
+      - instanceId == cfg.resource_group  (only when RESOURCE_GROUP is set)
 
     Returns a dict with:
       - total_cu:          float  – total capacity units consumed
       - by_application:   dict   – {application_name: cu_value}
       - subaccount_name:  str    – human-readable subaccount name
+      - resource_group:   str    – resource group filter applied (empty = all)
       - period_start:     str    – ISO start date from the records
       - period_end:       str    – ISO end date from the records
       - raw_records:      list   – the matching raw records
@@ -202,6 +204,18 @@ def aggregate_ai_core_capacity_units(records: List[dict]) -> Dict:
         for r in records
         if r.get("serviceId") == "ai-core" and r.get("measureId") == "capacity_units"
     ]
+
+    # Apply resource group filter when configured
+    if cfg.resource_group:
+        ai_core_cu_records = [
+            r for r in ai_core_cu_records
+            if r.get("instanceId") == cfg.resource_group
+        ]
+        logger.info(
+            "Filtered to resource group '%s': %d record(s) remaining",
+            cfg.resource_group,
+            len(ai_core_cu_records),
+        )
 
     total_cu = sum(r.get("usage", 0.0) for r in ai_core_cu_records)
 
@@ -226,15 +240,17 @@ def aggregate_ai_core_capacity_units(records: List[dict]) -> Dict:
         period_end = first.get("endIsoDate", "")
 
     logger.info(
-        "Aggregated AI Core capacity units: %.6f CU across %d application(s)",
+        "Aggregated AI Core capacity units: %.6f CU across %d application(s)%s",
         total_cu,
         len(by_application),
+        f" (resource group: {cfg.resource_group})" if cfg.resource_group else "",
     )
 
     return {
         "total_cu": total_cu,
         "by_application": by_application,
         "subaccount_name": subaccount_name,
+        "resource_group": cfg.resource_group,
         "period_start": period_start,
         "period_end": period_end,
         "raw_records": ai_core_cu_records,

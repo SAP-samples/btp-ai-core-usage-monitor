@@ -31,7 +31,7 @@ A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors da
 └─────────────────────────────────────────────────────────────┘
 ```
 
-**Metric tracked:** `serviceId=ai-core` + `measureId=capacity_units` — summed across all models (Claude, GPT, embedding models, etc.) for the current calendar month.
+**Metric tracked:** `serviceId=ai-core` + `measureId=capacity_units` — summed across all models (Claude, GPT, embedding models, etc.) for the current calendar month. When `RESOURCE_GROUP` is set, only records matching that AI Core resource group (`instanceId`) are included.
 
 ![Email notification example](email_example.png)
 
@@ -60,6 +60,7 @@ All configuration is via environment variables (set in `manifest.yml` or via `cf
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `SUBACCOUNT_ID` | ✅ | — | SAP BTP subaccount UUID to monitor |
+| `RESOURCE_GROUP` | | `` (all) | AI Core resource group (`instanceId`) to monitor. When set, only capacity units from this resource group are counted. Leave empty to aggregate all resource groups in the subaccount. |
 | `SPENDING_LIMIT` | ✅ | `100` | Monthly AI Core capacity unit budget |
 | `WARNING_THRESHOLD_PERCENT` | | `60` | % of limit that triggers a warning email |
 | `ALERT_THRESHOLD_PERCENT` | | `80` | % of limit that triggers an alert email |
@@ -409,6 +410,26 @@ curl -X POST "$APP_URL/trigger" \
 curl -X POST "$APP_URL/trigger" -H "Authorization: Bearer $TOKEN"
 ```
 
+## Multi-team Monitoring
+
+To send per-resource-group alerts to **different recipients**, deploy the app multiple times — one instance per team. Each instance monitors its own resource group and emails its own recipient list independently.
+
+```bash
+# Team A — resource group "default", 50 CU limit
+cf push ai-core-monitor-team-a -f manifest.yml
+cf set-env ai-core-monitor-team-a RESOURCE_GROUP default
+cf set-env ai-core-monitor-team-a SPENDING_LIMIT 50
+cf set-env ai-core-monitor-team-a NOTIFICATION_EMAIL team-a@company.com
+cf restart ai-core-monitor-team-a
+
+# Team B — resource group "research", 30 CU limit
+cf push ai-core-monitor-team-b -f manifest.yml
+cf set-env ai-core-monitor-team-b RESOURCE_GROUP research
+cf set-env ai-core-monitor-team-b SPENDING_LIMIT 30
+cf set-env ai-core-monitor-team-b NOTIFICATION_EMAIL team-b@company.com
+cf restart ai-core-monitor-team-b
+```
+
 ## API Endpoints
 
 | Method | Path | Protected | Description |
@@ -506,7 +527,7 @@ curl -X POST http://localhost:8080/trigger -H "Content-Type: application/json" -
 | `401 Unauthorized` on `/status`, `/trigger`, `/config` | Missing or invalid Bearer token | Obtain a token from XSUAA (see Security section) |
 | `401` with `XSUAA service binding not configured` | XSUAA not bound | Ensure `ai-core-monitor-xsuaa` is in `services:` and `cf push` was run |
 | `401 Unauthorized` from UAS API | Wrong UAS credentials | Verify `UAS_CLIENT_ID`, `UAS_CLIENT_SECRET`, `UAS_TOKEN_URL` |
-| `0.0 CU` reported | No AI Core usage this month, or wrong subaccount ID | Check subaccount ID and date range |
+| `0.0 CU` reported | No AI Core usage this month, wrong subaccount ID, or `RESOURCE_GROUP` set to a name that doesn't exist | Check subaccount ID, date range, and resource group name |
 | Emails not arriving | SMTP misconfiguration | Check `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD` |
 | ANS events not routing | No ANS subscription configured | Create a subscription in the ANS dashboard for event type `AI_CORE_CAPACITY_MONITOR` |
 | Scheduler fires twice | Multiple CF instances | Keep `instances: 1` in `manifest.yml` |

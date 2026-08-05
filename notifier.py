@@ -81,6 +81,17 @@ def _build_html_email(usage: Dict, level: str) -> str:
     projected_pct = (projected_cu / spending_limit * 100) if spending_limit > 0 else 0.0
     subaccount_name = usage.get("subaccount_name") or cfg.subaccount_id
     resource_group = usage.get("resource_group", "")
+    # Pre-compute resource group HTML snippets (backslashes not allowed in f-string expressions
+    # before Python 3.12, so we build these strings outside the f-string)
+    rg_code_style = "background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;"
+    rg_header_html = (
+        f'&nbsp;&#183;&nbsp; Resource Group: <code style="{rg_code_style}">{resource_group}</code>'
+        if resource_group else ""
+    )
+    rg_footer_html = (
+        f"&nbsp;&#183;&nbsp; Resource Group: {resource_group}"
+        if resource_group else ""
+    )
     today = date.today()
     month_start_iso = today.replace(day=1).isoformat()
     fetch_date_iso = usage.get("fetch_date", today.isoformat())
@@ -191,7 +202,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
                   </div>
                    <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#354a5f;margin-top:4px;">
                      Subaccount ID: <code style="background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;">{cfg.subaccount_id}</code>
-                     {"&nbsp;&#183;&nbsp; Resource Group: <code style=\"background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;\">" + resource_group + "</code>" if resource_group else ""}
+                     {rg_header_html}
                      &nbsp;&#183;&nbsp; &#128197; {period_start_fmt} &#8594; {period_end_fmt}
                    </div>
                 </td>
@@ -355,7 +366,7 @@ def _build_html_email(usage: Dict, level: str) -> str:
                 <td bgcolor="#EAECEE" style="padding:0 48px 24px;">
                    <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5em;color:#354a5f;">
                      This report was generated automatically by the AI Core Consumption Monitor on {fetch_date}.<br>
-                     Running on SAP BTP Cloud Foundry &nbsp;&#183;&nbsp; Subaccount: {subaccount_name}{"&nbsp;&#183;&nbsp; Resource Group: " + resource_group if resource_group else ""}
+                     Running on SAP BTP Cloud Foundry &nbsp;&#183;&nbsp; Subaccount: {subaccount_name}{rg_footer_html}
                    </div>
                 </td>
               </tr>

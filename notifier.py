@@ -80,6 +80,18 @@ def _build_html_email(usage: Dict, level: str) -> str:
     projected_cu = usage.get("projected_cu", 0.0)
     projected_pct = (projected_cu / spending_limit * 100) if spending_limit > 0 else 0.0
     subaccount_name = usage.get("subaccount_name") or cfg.subaccount_id
+    resource_group = usage.get("resource_group", "")
+    # Pre-compute resource group HTML snippets (backslashes not allowed in f-string expressions
+    # before Python 3.12, so we build these strings outside the f-string)
+    rg_code_style = "background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;"
+    rg_header_html = (
+        f'&nbsp;&#183;&nbsp; Resource Group: <code style="{rg_code_style}">{resource_group}</code>'
+        if resource_group else ""
+    )
+    rg_footer_html = (
+        f"&nbsp;&#183;&nbsp; Resource Group: {resource_group}"
+        if resource_group else ""
+    )
     today = date.today()
     month_start_iso = today.replace(day=1).isoformat()
     fetch_date_iso = usage.get("fetch_date", today.isoformat())
@@ -188,10 +200,11 @@ def _build_html_email(usage: Dict, level: str) -> str:
                   <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:22px;font-weight:700;color:#223548;line-height:1.2em;">
                     {subaccount_name}
                   </div>
-                  <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#354a5f;margin-top:4px;">
-                    Subaccount ID: <code style="background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;">{cfg.subaccount_id}</code>
-                    &nbsp;&#183;&nbsp; &#128197; {period_start_fmt} &#8594; {period_end_fmt}
-                  </div>
+                   <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:13px;color:#354a5f;margin-top:4px;">
+                     Subaccount ID: <code style="background:#f4f6f9;padding:2px 6px;border-radius:3px;font-size:12px;color:#354a5f;">{cfg.subaccount_id}</code>
+                     {rg_header_html}
+                     &nbsp;&#183;&nbsp; &#128197; {period_start_fmt} &#8594; {period_end_fmt}
+                   </div>
                 </td>
               </tr>
             </table>
@@ -351,10 +364,10 @@ def _build_html_email(usage: Dict, level: str) -> str:
               <tr><td bgcolor="#EAECEE" height="12"><div style="height:12px;line-height:12px;"> </div></td></tr>
               <tr>
                 <td bgcolor="#EAECEE" style="padding:0 48px 24px;">
-                  <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5em;color:#354a5f;">
-                    This report was generated automatically by the AI Core Consumption Monitor on {fetch_date}.<br>
-                    Running on SAP BTP Cloud Foundry &nbsp;&#183;&nbsp; Subaccount: {subaccount_name}
-                  </div>
+                   <div style="font-family:'72 Brand',Arial,Helvetica,sans-serif;font-size:12px;line-height:1.5em;color:#354a5f;">
+                     This report was generated automatically by the AI Core Consumption Monitor on {fetch_date}.<br>
+                     Running on SAP BTP Cloud Foundry &nbsp;&#183;&nbsp; Subaccount: {subaccount_name}{rg_footer_html}
+                   </div>
                 </td>
               </tr>
             </table>
@@ -375,10 +388,12 @@ def _build_subject(usage: Dict, level: str) -> str:
     meta = _LEVEL_META[level]
     pct = (usage["total_cu"] / cfg.spending_limit * 100) if cfg.spending_limit > 0 else 0
     subaccount_name = usage.get("subaccount_name") or cfg.subaccount_id
+    resource_group = usage.get("resource_group", "")
+    scope = f"{subaccount_name} / {resource_group}" if resource_group else subaccount_name
     return (
         f"{meta['emoji']} [{meta['label']}] AI Core Capacity: "
         f"{pct:.1f}% used ({usage['total_cu']:.4f} / {cfg.spending_limit:.2f} CU) "
-        f"– {subaccount_name}"
+        f"– {scope}"
     )
 
 
@@ -558,11 +573,16 @@ def send_ans_notification(usage: Dict, level: str) -> bool:
         "eventTimestamp": int(time.time()),
         "severity": meta["ans_severity"],
         "category": meta["ans_category"],
-        "subject": f"AI Core Capacity {meta['label']}: {pct:.1f}% used",
+        "subject": (
+            f"AI Core Capacity {meta['label']}: {pct:.1f}% used"
+            + (f" (Resource Group: {cfg.resource_group})" if cfg.resource_group else "")
+        ),
         "body": (
-            f"Subaccount '{subaccount_name}' ({cfg.subaccount_id}) has consumed "
-            f"{total_cu:.6f} capacity units ({pct:.1f}% of the {cfg.spending_limit:.2f} CU "
-            f"monthly limit). Projected month-end: {usage.get('projected_cu', 0.0):.6f} CU.\n\n"
+            f"Subaccount '{subaccount_name}' ({cfg.subaccount_id})"
+            + (f", Resource Group '{cfg.resource_group}'" if cfg.resource_group else "")
+            + f" has consumed {total_cu:.6f} capacity units ({pct:.1f}% of the "
+            f"{cfg.spending_limit:.2f} CU monthly limit). "
+            f"Projected month-end: {usage.get('projected_cu', 0.0):.6f} CU.\n\n"
             f"Reporting period: {period_start} → {period_end}.\n"
             f"Top consumer: {top_consumer}."
         ),
@@ -589,6 +609,7 @@ def send_ans_notification(usage: Dict, level: str) -> bool:
             "periodEndIso": period_end_iso,
             "warningThreshold": str(cfg.warning_threshold_percent),
             "alertThreshold": str(cfg.alert_threshold_percent),
+            "resourceGroup": usage.get("resource_group", ""),
         },
         "resource": {
             "resourceName": subaccount_name,

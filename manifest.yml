@@ -14,6 +14,11 @@ applications:
       # ── BTP Subaccount ──────────────────────────────────────────────────────
       SUBACCOUNT_ID: "your-subaccount-uuid" # The UUID of the subaccount to monitor (from BTP cockpit URL)
 
+      # ── AI Core Resource Group (optional) ───────────────────────────────────
+      # When set, only capacity units from this resource group (instanceId) are counted.
+      # Leave empty or omit to aggregate all resource groups in the subaccount.
+      # RESOURCE_GROUP: "default"
+
       # ── Spending limit & thresholds ─────────────────────────────────────────
       SPENDING_LIMIT: "100" # Monthly AI Core capacity unit budget
       WARNING_THRESHOLD_PERCENT: "60" # Send a WARNING email when usage reaches this % of the limit

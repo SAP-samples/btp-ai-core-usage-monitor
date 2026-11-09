@@ -1,4 +1,5 @@
 # AI Core Consumption Monitor
+[![REUSE status](https://api.reuse.software/badge/github.com/SAP-samples/btp-ai-core-usage-monitor)](https://api.reuse.software/info/github.com/SAP-samples/btp-ai-core-usage-monitor)
 
 A Python background agent that runs on **SAP BTP Cloud Foundry** and monitors daily AI Core capacity unit consumption. When consumption approaches a configured monthly spending limit, it sends notifications via **SMTP email** or **SAP Alert Notification Service (ANS)**.
 
